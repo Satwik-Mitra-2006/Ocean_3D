@@ -1,0 +1,9 @@
+{
+  "include": [
+    "backend"
+  ],
+  "extraPaths": [
+    "backend",
+    "C:/Users/hp/AppData/Local/Programs/Python/Python314/Lib/site-packages"
+  ]
+}

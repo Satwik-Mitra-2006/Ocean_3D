@@ -1,0 +1,11 @@
+{
+  "python.defaultInterpreterPath": "C:/Users/hp/AppData/Local/Programs/Python/Python314/python.exe",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/backend",
+    "C:/Users/hp/AppData/Local/Programs/Python/Python314/Lib/site-packages"
+  ],
+  "python.autoComplete.extraPaths": [
+    "${workspaceFolder}/backend",
+    "C:/Users/hp/AppData/Local/Programs/Python/Python314/Lib/site-packages"
+  ]
+}
