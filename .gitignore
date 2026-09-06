@@ -1,0 +1,22 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Editor & OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Data files
+backend/data/*.nc

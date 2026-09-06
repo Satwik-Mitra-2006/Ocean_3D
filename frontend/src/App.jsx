@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Navbar from './components/Navbar';
-import SummaryCards from './components/SummaryCards';
 import Sidebar from './components/Sidebar';
 import OceanScene from './components/OceanScene';
 import DataPanel from './components/DataPanel';
-import TimeControls from './components/TimeControls';
 import DataCharts from './components/DataCharts';
 import SettingsModal from './components/SettingsModal';
-import OceanAIExplainer from './components/OceanAIExplainer';
+import SimulationControls from './components/SimulationControls';
+import ModelObservationComparisonCard from './components/ModelObservationComparisonCard';
 import { 
   OBSERVATION_STATIONS, 
   getStationObservationAtTime,
@@ -15,6 +14,11 @@ import {
   generateDepthProfileData
 } from './data/mockOceanData';
 import { oceanDataService } from './services/oceanDataService';
+import Ocean3DView from './views/Ocean3DView';
+import ObservationsView from './views/ObservationsView';
+import ModelDataView from './views/ModelDataView';
+import AnalysisView from './views/AnalysisView';
+import AboutView from './views/AboutView';
 import './App.css';
 
 export default function App() {
@@ -22,25 +26,32 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  // Interactive Simulation & What-If Scenario State ('baseline' | 'cyclone' | 'monsoon')
+  const [simulationScenario, setSimulationScenario] = useState('baseline');
+
   // Ocean Layers state
   const [layers, setLayers] = useState({
-    sst: true,
-    salinity: true,
+    stations: true,
     currents: true,
-    waves: false,
-    observations: true,
+    coastline: true,
+    bathymetry: false,
+    grid: false,
   });
 
   // Layer & Visual controls
-  const [selectedDepth, setSelectedDepth] = useState(0.49); // 0.49m (first real Copernicus NetCDF depth)
+  const [selectedDepth, setSelectedDepth] = useState(0.49); // Default to real Copernicus surface layer
   const [opacity, setOpacity] = useState(0.85);
   const [colorScale, setColorScale] = useState('turbo');
-  const [primaryVariable, setPrimaryVariable] = useState('sst');
-  const [selectedModel, setSelectedModel] = useState('incois-roms');
-  const [resetTrigger, setResetTrigger] = useState(0);
+  const [primaryVariable, setPrimaryVariable] = useState('thetao');
 
-  // Time dimension state (0 to 24 hours)
-  const [currentTimeHour, setCurrentTimeHour] = useState(12);
+  // Data Source mode: 'model' (Numerical Model / Copernicus GLORYS12V1) or 'insitu' (In-Situ Observation Buoys)
+  const [dataSource, setDataSource] = useState('model');
+
+  // Time & Date dimension state (strictly bound to user dataset: 17/06/2026 to 23/06/2026)
+  const [startDate, setStartDate] = useState('2026-06-17');
+  const [endDate, setEndDate] = useState('2026-06-23');
+  const [selectedDate, setSelectedDate] = useState('2026-06-23');
+  const [currentTimeHour, setCurrentTimeHour] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
 
   // Real Copernicus Backend Data & Metadata
@@ -51,13 +62,31 @@ export default function App() {
   });
   const [gridPoints, setGridPoints] = useState([]);
   const [isLoadingGrid, setIsLoadingGrid] = useState(true);
-  const [availableDepths, setAvailableDepths] = useState([]);
+  const [availableDepths, setAvailableDepths] = useState([0.49, 1.54, 2.65, 3.82, 5.08, 6.44, 7.93, 9.57, 11.40]);
 
-  // Observation Stations state
+  // Observation Stations state (Defaulting to Station CB01 - Coastal Radar matching mockup)
   const [stations, setStations] = useState(OBSERVATION_STATIONS);
-  const [selectedStation, setSelectedStation] = useState(OBSERVATION_STATIONS[0]);
+  const [selectedStation, setSelectedStation] = useState(
+    OBSERVATION_STATIONS.find(s => s.code === 'CB01') || OBSERVATION_STATIONS[3]
+  );
+  const [verticalProfile, setVerticalProfile] = useState([]);
 
-  // Initial load: fetch health, Copernicus 3D grid, and stations
+  // Fetch real vertical profile when selected station changes
+  const fetchStationProfile = useCallback(async (st, date = selectedDate) => {
+    if (!st) return;
+    try {
+      const lat = st.lat ?? st.latitude ?? 10.57;
+      const lon = st.lon ?? st.longitude ?? 72.63;
+      const res = await oceanDataService.getVerticalProfile(lat, lon, st.id, date);
+      if (res && res.profile && res.profile.length > 0) {
+        setVerticalProfile(res.profile);
+      }
+    } catch (e) {
+      console.warn('Error fetching station vertical profile:', e);
+    }
+  }, [selectedDate]);
+
+  // Initial load: fetch health, available depths, stations, and grid
   const loadData = useCallback(async () => {
     setIsLoadingGrid(true);
 
@@ -65,12 +94,14 @@ export default function App() {
     const health = await oceanDataService.checkHealth();
     setBackendHealth(health);
 
-    // 2. Fetch stations
+    // 2. Fetch stations for initial date
     try {
-      const stationList = await oceanDataService.getStations();
+      const stationList = await oceanDataService.getStations({ date: selectedDate });
       if (stationList && stationList.length > 0) {
         setStations(stationList);
-        setSelectedStation(stationList[0]);
+        const cb01 = stationList.find(s => s.code === 'CB01') || stationList[0];
+        setSelectedStation(cb01);
+        fetchStationProfile(cb01, selectedDate);
       }
     } catch (err) {
       console.error('Error fetching stations:', err);
@@ -79,8 +110,9 @@ export default function App() {
     // 3. Fetch real available depths from Copernicus NetCDF
     try {
       const depthRes = await oceanDataService.getAvailableDepths();
-      if (depthRes && depthRes.available_depths) {
+      if (depthRes && depthRes.available_depths && depthRes.available_depths.length > 0) {
         setAvailableDepths(depthRes.available_depths);
+        setSelectedDepth(prev => depthRes.available_depths.includes(prev) ? prev : depthRes.available_depths[0]);
       }
     } catch (err) {
       console.error('Error fetching available depths:', err);
@@ -88,7 +120,7 @@ export default function App() {
 
     // 4. Fetch 3D Copernicus Marine grid
     try {
-      const gridRes = await oceanDataService.getOceanGrid({ stride: 20 });
+      const gridRes = await oceanDataService.getOceanGrid({ stride: 20, date: selectedDate, depth: selectedDepth });
       if (gridRes && gridRes.points) {
         setGridPoints(gridRes.points);
       }
@@ -97,194 +129,357 @@ export default function App() {
     } finally {
       setIsLoadingGrid(false);
     }
-  }, []);
+  }, [fetchStationProfile, selectedDate, selectedDepth]);
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, []);
 
-  // Compute live station observation adjusted for time slider
+  // Synchronize stations, vertical profile, and 3D grid whenever selectedDate changes
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function syncDateData() {
+      try {
+        const updatedStations = await oceanDataService.getStations({
+          date: selectedDate,
+          depth: selectedDepth
+        });
+        if (!isCancelled && updatedStations && updatedStations.length > 0) {
+          setStations(updatedStations);
+          setSelectedStation(prev => {
+            const currentCode = prev?.code || prev?.id;
+            const found = updatedStations.find(s => s.code === currentCode || s.id === currentCode);
+            return found || updatedStations[0];
+          });
+        }
+
+        if (selectedStation) {
+          const lat = selectedStation.lat ?? selectedStation.latitude ?? 10.57;
+          const lon = selectedStation.lon ?? selectedStation.longitude ?? 72.63;
+          const res = await oceanDataService.getVerticalProfile(lat, lon, selectedStation.id, selectedDate);
+          if (!isCancelled && res && res.profile && res.profile.length > 0) {
+            setVerticalProfile(res.profile);
+          }
+        }
+
+        const gridRes = await oceanDataService.getOceanGrid({
+          stride: 20,
+          depth: selectedDepth,
+          date: selectedDate
+        });
+        if (!isCancelled && gridRes && gridRes.points) {
+          setGridPoints(gridRes.points);
+        }
+      } catch (err) {
+        console.warn('Date synchronization notice:', err);
+      }
+    }
+
+    syncDateData();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedDate, selectedDepth]);
+
+  // Handle station selection
+  const handleSelectStation = useCallback((st) => {
+    setSelectedStation(st);
+    fetchStationProfile(st, selectedDate);
+  }, [fetchStationProfile, selectedDate]);
+
+  // Compute live station observation adjusted for selected depth & time & scenario
   const liveStationData = useMemo(() => {
     if (!selectedStation) return null;
-    return getStationObservationAtTime(selectedStation, currentTimeHour);
-  }, [selectedStation, currentTimeHour]);
+    let base = getStationObservationAtTime(selectedStation, currentTimeHour, selectedDate || '2026-06-23', selectedDepth);
 
-  // Compute time series and vertical profiles for analytics charts
+    // If we have a vertical profile from backend, interpolate physical parameters at selectedDepth
+    if (verticalProfile && verticalProfile.length > 0) {
+      const nearest = verticalProfile.reduce((prev, curr) => 
+        Math.abs(curr.depth - selectedDepth) < Math.abs(prev.depth - selectedDepth) ? curr : prev
+      );
+      if (nearest) {
+        // Add subtle diurnal wave to the profile point so time of day is reflected
+        const hourAngle = ((currentTimeHour - 6) / 24) * 2 * Math.PI;
+        const thermalDamp = Math.exp(-Number(selectedDepth) / 5.0);
+        const tVar = Math.sin(hourAngle) * (0.45 * thermalDamp);
+        const sVar = Math.sin(hourAngle * 0.5) * (0.05 * thermalDamp);
+
+        base = {
+          ...base,
+          depth: selectedDepth,
+          temperature: +(nearest.temperature + tVar).toFixed(2),
+          salinity: +(nearest.salinity + sVar).toFixed(2),
+          current_speed: nearest.current_speed,
+          density: nearest.density
+        };
+      }
+    }
+
+    // Apply What-If Scenario Shifts
+    if (simulationScenario === 'cyclone') {
+      const isBayOfBengal = (base.lon ?? base.longitude ?? 80) >= 78.0;
+      if (isBayOfBengal) {
+        base = {
+          ...base,
+          status: 'Warning',
+          temperature: +(base.temperature - 2.2).toFixed(1), // Cold wake
+          wave_height: +(Math.max(base.wave_height || 2.0, 6.4)).toFixed(1), // Storm surge
+          current_speed: +(Math.max(base.current_speed || 0.5, 2.75)).toFixed(2),
+          pressure: 942.0
+        };
+      }
+    } else if (simulationScenario === 'monsoon') {
+      const isWestCoast = (base.lon ?? base.longitude ?? 72) <= 78.0;
+      if (isWestCoast) {
+        base = {
+          ...base,
+          temperature: +(base.temperature - 3.2).toFixed(1), // Coastal upwelling
+          salinity: +(base.salinity + 0.7).toFixed(1),
+          current_speed: +(Math.max(base.current_speed || 0.4, 1.85)).toFixed(2),
+          wave_height: 3.2
+        };
+      }
+    }
+
+    // Synchronize exact selected date and time in timestamp
+    const dateFormatted = selectedDate || '2026-06-23';
+    const hourStr = String(Math.floor(currentTimeHour)).padStart(2, '0');
+    base = {
+      ...base,
+      timestamp: `${dateFormatted} ${hourStr}:00 UTC`
+    };
+
+    return base;
+  }, [selectedStation, currentTimeHour, selectedDepth, verticalProfile, simulationScenario, selectedDate]);
+
+  // Compute time series and vertical profiles for analytics charts (dynamically responds to date AND depth)
   const timeSeriesData = useMemo(() => {
-    return generateTimeSeriesData(selectedStation, primaryVariable);
-  }, [selectedStation, primaryVariable]);
+    return generateTimeSeriesData(selectedStation, primaryVariable, selectedDate || '2026-06-23', selectedDepth);
+  }, [selectedStation, primaryVariable, selectedDate, selectedDepth]);
 
   const depthProfileData = useMemo(() => {
     return generateDepthProfileData(selectedStation);
   }, [selectedStation]);
 
-  // Station counts
-  const stationsCount = useMemo(() => {
-    return {
-      total: stations.length,
-      active: stations.filter(s => s.status === 'Active').length,
-      warning: stations.filter(s => s.status === 'Warning').length,
-      offline: stations.filter(s => s.status === 'Offline').length
-    };
-  }, [stations]);
-
-  const handleResetCamera = () => {
-    setResetTrigger(prev => prev + 1);
-  };
-
-  const handleTabChange = (tabId) => {
-    setActiveTab(tabId);
-    if (tabId === 'dashboard') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else if (tabId === '3d-ocean') {
-      const el = document.getElementById('ocean-viewport');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setLayers(prev => ({ ...prev, sst: true, currents: true, observations: true }));
-    } else if (tabId === 'observations') {
-      const el = document.getElementById('ocean-viewport');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setLayers(prev => ({ ...prev, observations: true }));
-    } else if (tabId === 'model-data') {
-      const el = document.getElementById('analytics-section');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setLayers(prev => ({ ...prev, sst: true, salinity: true }));
-    }
-  };
-
-  const isLiveCopernicus = Boolean(backendHealth?.dataset_available);
-
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-sky-500/20">
-      {/* Top Navigation Bar */}
+    <div className="min-h-screen bg-[#070d19] text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+      
+      {/* 1. TOP NAVBAR */}
       <Navbar 
-        activeTab={activeTab} 
-        setActiveTab={handleTabChange} 
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
         onOpenSettings={() => setIsSettingsOpen(true)}
         backendHealth={backendHealth}
-        pointsCount={gridPoints.length}
+        pointsCount={gridPoints.length || 1122}
       />
 
-      {/* Main Scientific Dashboard Body */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+      {/* 2. MAIN APPLICATION VIEWS (ROUTED BY activeTab) */}
+      <main className="flex-1 w-full px-3 sm:px-4 py-3 flex flex-col gap-3 max-w-[1920px] mx-auto">
         
-        {/* Section 8: Summary Cards */}
-        <SummaryCards 
-          selectedStationData={liveStationData} 
-          stationsCount={stationsCount}
-          backendHealth={backendHealth}
-        />
+        {/* TAB 1: UNIFIED DASHBOARD */}
+        {activeTab === 'dashboard' && (
+          <>
+            {/* SCENARIO ENGINE: CYCLONE & MONSOON SIMULATOR */}
+            <SimulationControls
+              simulationScenario={simulationScenario}
+              setSimulationScenario={setSimulationScenario}
+            />
 
-        {/* Core Layout: Sidebar | 3D Ocean Scene | Right Data Panel */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          
-          {/* Left Column: Ocean Layers & Model Control (3 cols) */}
-          <div className="lg:col-span-3 order-2 lg:order-1">
-            <Sidebar
-              layers={layers}
-              setLayers={setLayers}
-              selectedDepth={selectedDepth}
-              setSelectedDepth={setSelectedDepth}
-              opacity={opacity}
-              setOpacity={setOpacity}
-              colorScale={colorScale}
-              setColorScale={setColorScale}
-              onResetView={handleResetCamera}
-              selectedModel={selectedModel}
-              setSelectedModel={setSelectedModel}
-              primaryVariable={primaryVariable}
-              setPrimaryVariable={setPrimaryVariable}
-              stations={stations}
+            {/* TOP ROW: 4-COLUMN VIEWPORT LAYOUT */}
+            <div className="flex flex-col lg:flex-row gap-3 items-stretch w-full">
+              {/* Left Column: Sidebar Parameters & Controls */}
+              <Sidebar
+                layers={layers}
+                setLayers={setLayers}
+                selectedDepth={selectedDepth}
+                setSelectedDepth={setSelectedDepth}
+                primaryVariable={primaryVariable}
+                setPrimaryVariable={setPrimaryVariable}
+                currentTimeHour={currentTimeHour}
+                setCurrentTimeHour={setCurrentTimeHour}
+                isPlaying={isPlaying}
+                setIsPlaying={setIsPlaying}
+                availableDepths={availableDepths}
+                opacity={opacity}
+                setOpacity={setOpacity}
+                stations={stations}
+                selectedStation={selectedStation}
+                onSelectStation={handleSelectStation}
+                startDate={startDate}
+                endDate={endDate}
+                selectedDate={selectedDate}
+                setStartDate={setStartDate}
+                setEndDate={setEndDate}
+                setSelectedDate={setSelectedDate}
+                dataSource={dataSource}
+                setDataSource={setDataSource}
+              />
+
+              {/* Center Viewport: 3D Earth Globe with Thermal Colormap & Streamlines + Live Marine Sea-State HUD */}
+              <div className="flex-1 min-w-0 flex flex-col gap-3">
+                <OceanScene
+                  stations={stations}
+                  gridPoints={gridPoints}
+                  selectedStation={liveStationData || selectedStation}
+                  onSelectStation={handleSelectStation}
+                  layers={layers}
+                  selectedDepth={selectedDepth}
+                  setSelectedDepth={setSelectedDepth}
+                  opacity={opacity}
+                  colorScale={colorScale}
+                  primaryVariable={primaryVariable}
+                  setPrimaryVariable={setPrimaryVariable}
+                  currentTimeHour={currentTimeHour}
+                  setCurrentTimeHour={setCurrentTimeHour}
+                  availableDepths={availableDepths}
+                  isPlaying={isPlaying}
+                  setIsPlaying={setIsPlaying}
+                  isCyclone={simulationScenario === 'cyclone'}
+                  isMonsoonUpwelling={simulationScenario === 'monsoon'}
+                  startDate={startDate}
+                  endDate={endDate}
+                  selectedDate={selectedDate}
+                  setSelectedDate={setSelectedDate}
+                  dataSource={dataSource}
+                  setDataSource={setDataSource}
+                />
+
+                {/* DEDICATED MODEL VS IN-SITU VALIDATION TABLE & COMPACT DIURNAL SPARKLINE CHARTS */}
+                <ModelObservationComparisonCard
+                  station={liveStationData || selectedStation}
+                  timeSeriesData={timeSeriesData}
+                  currentTimeHour={currentTimeHour}
+                  selectedDepth={selectedDepth}
+                  selectedDate={selectedDate}
+                  simulationScenario={simulationScenario}
+                  dataSource={dataSource}
+                  setDataSource={setDataSource}
+                />
+              </div>
+
+              {/* Right Column: Selected Station Telemetry Card */}
+              <DataPanel
+                selectedStation={selectedStation}
+                selectedStationData={liveStationData}
+                onClearSelection={() => handleSelectStation(stations[0])}
+                selectedDepth={selectedDepth}
+                stations={stations}
+                onSelectStation={handleSelectStation}
+                backendHealth={backendHealth}
+                startDate={startDate}
+                endDate={endDate}
+                selectedDate={selectedDate}
+                currentTimeHour={currentTimeHour}
+                dataSource={dataSource}
+                setDataSource={setDataSource}
+              />
+            </div>
+
+            {/* BOTTOM ROW: ANALYTICS & AI DIAGNOSIS */}
+            <DataCharts
+              verticalProfile={verticalProfile}
+              depthProfileData={depthProfileData}
+              timeSeriesData={timeSeriesData}
               selectedStation={selectedStation}
-              onSelectStation={setSelectedStation}
+              isLiveCopernicus={Boolean(backendHealth.dataset_available)}
+              dataSource={dataSource}
             />
-          </div>
+          </>
+        )}
 
-          {/* Center Column: 3D Visualization Area (6 cols) */}
-          <div id="ocean-viewport" className="lg:col-span-6 flex flex-col gap-4 order-1 lg:order-2 scroll-mt-20">
-            <OceanScene
-              stations={stations}
-              gridPoints={gridPoints}
-              selectedStation={selectedStation}
-              onSelectStation={setSelectedStation}
-              onSelectGridPoint={(pt) => setSelectedStation(pt)}
-              layers={layers}
-              selectedDepth={selectedDepth}
-              opacity={opacity}
-              colorScale={colorScale}
-              primaryVariable={primaryVariable}
-              currentTimeHour={currentTimeHour}
-              resetTrigger={resetTrigger}
-              availableDepths={availableDepths}
-            />
-
-            {/* Bottom Time Control (Directly below 3D viewport) */}
-            <TimeControls
-              currentTimeHour={currentTimeHour}
-              setCurrentTimeHour={setCurrentTimeHour}
-              isPlaying={isPlaying}
-              setIsPlaying={setIsPlaying}
-            />
-          </div>
-
-          {/* Right Column: Information Panel (3 cols) */}
-          <div className="lg:col-span-3 order-3">
-            <DataPanel
-              selectedStation={selectedStation}
-              selectedStationData={liveStationData}
-              onClearSelection={() => setSelectedStation(null)}
-              allStations={stations}
-              onSelectStation={setSelectedStation}
-              backendHealth={backendHealth}
-            />
-          </div>
-
-        </div>
-
-        {/* Explainable AI (XAI) Marine Intelligence Assistant */}
-        <OceanAIExplainer 
-          stationOrPoint={liveStationData || selectedStation} 
-        />
-
-        {/* Section 7: Analytics & Validation Charts Area */}
-        <div id="analytics-section" className="scroll-mt-20">
-          <DataCharts
-            timeSeriesData={timeSeriesData}
-            depthProfileData={depthProfileData}
-            selectedStation={selectedStation}
+        {/* TAB 2: DEDICATED 3D OCEAN VIEW */}
+        {activeTab === '3d-ocean' && (
+          <Ocean3DView
+            stations={stations}
+            gridPoints={gridPoints}
+            selectedStation={liveStationData || selectedStation}
+            onSelectStation={handleSelectStation}
+            layers={layers}
+            setLayers={setLayers}
+            selectedDepth={selectedDepth}
+            setSelectedDepth={setSelectedDepth}
+            opacity={opacity}
+            colorScale={colorScale}
+            primaryVariable={primaryVariable}
+            setPrimaryVariable={setPrimaryVariable}
             currentTimeHour={currentTimeHour}
-            isLiveCopernicus={isLiveCopernicus}
+            setCurrentTimeHour={setCurrentTimeHour}
+            availableDepths={availableDepths}
+            isPlaying={isPlaying}
+            setIsPlaying={setIsPlaying}
+            simulationScenario={simulationScenario}
+            setSimulationScenario={setSimulationScenario}
+            startDate={startDate}
+            endDate={endDate}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            dataSource={dataSource}
+            setDataSource={setDataSource}
           />
-        </div>
+        )}
+
+        {/* TAB 3: OBSERVATIONS IN-SITU NETWORK */}
+        {activeTab === 'observations' && (
+          <ObservationsView
+            stations={stations}
+            selectedStation={liveStationData || selectedStation}
+            onSelectStation={handleSelectStation}
+            onNavigateTo3D={() => setActiveTab('dashboard')}
+            selectedDepth={selectedDepth}
+          />
+        )}
+
+        {/* TAB 4: COPERNICUS MODEL DATA EXPLORER */}
+        {activeTab === 'model-data' && (
+          <ModelDataView
+            backendHealth={backendHealth}
+            availableDepths={availableDepths}
+            selectedStation={liveStationData || selectedStation}
+            stations={stations}
+            onSelectStation={handleSelectStation}
+            selectedDepth={selectedDepth}
+            setSelectedDepth={setSelectedDepth}
+            verticalProfile={verticalProfile}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            currentTimeHour={currentTimeHour}
+            setCurrentTimeHour={setCurrentTimeHour}
+          />
+        )}
+
+        {/* TAB 5: OCEANOGRAPHIC ANALYSIS & STRATIFICATION */}
+        {activeTab === 'analysis' && (
+          <AnalysisView
+            verticalProfile={verticalProfile}
+            depthProfileData={depthProfileData}
+            timeSeriesData={timeSeriesData}
+            selectedStation={selectedStation}
+            stations={stations}
+            onSelectStation={handleSelectStation}
+            isLiveCopernicus={Boolean(backendHealth.dataset_available)}
+          />
+        )}
+
+        {/* TAB 6: ABOUT & SIH 2026 PRESENTATION GUIDE */}
+        {activeTab === 'about' && (
+          <AboutView />
+        )}
 
       </main>
 
-      {/* Footer */}
-      <footer className="w-full bg-white border-t border-slate-200 mt-12 py-6 text-slate-500 text-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-800">Ocean3D Platform</span>
-            <span>—</span>
-            <span>Copernicus Marine NetCDF-4 Ocean Physical Reanalysis & In-Situ Observation System</span>
-          </div>
-          <div className="flex items-center gap-4 text-[11px] font-mono">
-            <span className={isLiveCopernicus ? "text-emerald-600 font-bold" : "text-slate-400"}>
-              {isLiveCopernicus ? "● Copernicus NetCDF Connected" : "○ Demo Mode"}
-            </span>
-            <span>•</span>
-            <span>FastAPI: /api/ocean/grid</span>
-            <span>•</span>
-            <span className="text-sky-600 font-semibold">Smart India Hackathon</span>
-          </div>
-        </div>
-      </footer>
-
-      {/* Backend Integration & Settings Modal */}
-      <SettingsModal 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
         backendHealth={backendHealth}
-        onRefresh={loadData}
+        selectedDepth={selectedDepth}
+        setSelectedDepth={setSelectedDepth}
+        colorScale={colorScale}
+        setColorScale={setColorScale}
       />
+
     </div>
   );
 }

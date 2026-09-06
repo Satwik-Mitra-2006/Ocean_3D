@@ -52,6 +52,10 @@ class OceanDataResponse(BaseModel):
     u_current: float = Field(..., description="Zonal current velocity (eastward) in m/s (uo)")
     v_current: float = Field(..., description="Meridional current velocity (northward) in m/s (vo)")
     current_speed: float = Field(..., description="Magnitude of ocean current velocity in m/s")
+    current_direction: Optional[float] = Field(None, description="Current flow direction in degrees (0-360)")
+    current_dir_compass: Optional[str] = Field("145° SE", description="Compass bearing direction (e.g. 145° SE)")
+    wave_height: Optional[float] = Field(2.0, description="Significant wave height in meters")
+    density: Optional[float] = Field(None, description="Calculated seawater potential density in kg/m3")
     timestamp: str = Field(..., description="Historical reanalysis ISO 8601 UTC timestamp")
     data_type: str = Field("reanalysis", description="Data category (historical reanalysis)")
     metadata: Optional[DatasetMetadata] = Field(None, description="Dataset provenance metadata")
@@ -60,14 +64,19 @@ class OceanDataResponse(BaseModel):
 class StationResponse(BaseModel):
     """Schema for in-situ ocean observation stations (simulated observation buoys/floats)."""
     id: str = Field(..., description="Unique station identifier")
-    code: Optional[str] = Field(None, description="Short buoy telemetry code (e.g. BD08, AD02)")
+    code: Optional[str] = Field(None, description="Short buoy telemetry code (e.g. BD08, AD02, CB01)")
     name: str = Field(..., description="Descriptive station name")
+    station_type: Optional[str] = Field("Moored Ocean Buoy", description="Platform type (e.g. Coastal Radar, Moored Buoy, Argo Float)")
     latitude: float = Field(..., description="Station latitude in decimal degrees")
     longitude: float = Field(..., description="Station longitude in decimal degrees")
     depth: float = Field(..., description="Observation sensor depth in meters")
     temperature: float = Field(..., description="Water temperature in °C")
     salinity: float = Field(..., description="Salinity in PSU")
     current_speed: float = Field(..., description="Current speed in m/s")
+    current_direction: Optional[float] = Field(145.0, description="Current flow direction in degrees")
+    current_dir_compass: Optional[str] = Field("145° SE", description="Compass direction string")
+    wave_height: Optional[float] = Field(2.0, description="Significant wave height in meters")
+    density: Optional[float] = Field(1024.2, description="Seawater density in kg/m3")
     status: str = Field(..., description="Station operational state (Active, Warning, Offline)")
     timestamp: str = Field(..., description="Observation timestamp")
     region: Optional[str] = Field(None, description="Oceanographic sub-basin or region")
@@ -107,3 +116,49 @@ class HealthResponse(BaseModel):
     copernicus_configured: bool = Field(..., description="Whether Copernicus credentials are configured")
     dataset_available: bool = Field(True, description="Whether local NetCDF dataset is loaded and readable")
     metadata: Optional[DatasetMetadata] = Field(None, description="Copernicus Marine dataset provenance")
+
+
+class VerticalProfilePoint(BaseModel):
+    """Single vertical depth measurement."""
+    depth: float = Field(..., description="Depth in meters")
+    temperature: float = Field(..., description="Potential temperature in °C")
+    salinity: float = Field(..., description="Salinity in PSU")
+    current_speed: float = Field(..., description="Current speed in m/s")
+    density: float = Field(..., description="Calculated seawater density in kg/m3")
+
+
+class VerticalProfileResponse(BaseModel):
+    """Real vertical ocean profile extracted from Copernicus NetCDF."""
+    latitude: float = Field(..., description="Requested point latitude")
+    longitude: float = Field(..., description="Requested point longitude")
+    actual_lat: float = Field(..., description="Nearest grid latitude in NetCDF")
+    actual_lon: float = Field(..., description="Nearest grid longitude in NetCDF")
+    station_id: Optional[str] = Field(None, description="Station ID if matched")
+    station_name: Optional[str] = Field(None, description="Station name if matched")
+    profile: List[VerticalProfilePoint] = Field(..., description="Vertical depth slice points")
+    timestamp: str = Field(..., description="Data timestamp")
+    metadata: Optional[DatasetMetadata] = Field(None, description="Copernicus dataset metadata")
+
+
+class AIAgentQueryRequest(BaseModel):
+    """Request schema for Ocean AI Agent query."""
+    question: str = Field(..., description="User question in English or Hinglish")
+    station_id: Optional[str] = Field(None, description="Selected observation station identifier")
+    station_name: Optional[str] = Field(None, description="Descriptive station name")
+    region: Optional[str] = Field(None, description="Oceanic region or basin")
+    depth: Optional[float] = Field(None, description="Selected depth in meters")
+    temperature: Optional[float] = Field(None, description="Water temperature in °C")
+    salinity: Optional[float] = Field(None, description="Salinity in PSU")
+    current_speed: Optional[float] = Field(None, description="Ocean current speed in m/s")
+    density: Optional[float] = Field(None, description="Seawater density in kg/m3")
+    wave_height: Optional[float] = Field(None, description="Significant wave height in meters")
+
+
+class AIAgentQueryResponse(BaseModel):
+    """Response schema for Ocean AI Agent analysis."""
+    answer: str = Field(..., description="Intelligent oceanographic answer in user's query language")
+    station_context: Optional[str] = Field(None, description="Summary of current station physical context")
+    key_impacts: List[str] = Field(default_factory=list, description="Bullet point physical / ecological impacts")
+    confidence: float = Field(0.95, description="Confidence score")
+    scenario_type: Optional[str] = Field(None, description="Identified question category / scenario")
+

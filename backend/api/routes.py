@@ -10,10 +10,13 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Path, Query, status
 
 from models.ocean_model import (
+    AIAgentQueryRequest,
+    AIAgentQueryResponse,
     HealthResponse,
     OceanDataResponse,
     OceanGridResponse,
     StationResponse,
+    VerticalProfileResponse,
 )
 from services.ocean_service import ocean_service
 
@@ -44,9 +47,31 @@ async def get_ocean_data(
     lat: float = Query(15.0, description="Latitude in decimal degrees (0 to 30)"),
     lon: float = Query(72.0, description="Longitude in decimal degrees (40 to 100)"),
     depth: float = Query(0.5, description="Depth level in meters (0 to 11.4)"),
+    date: Optional[str] = Query(None, description="Observation date (e.g. '2026-06-17' to '2026-06-23')"),
+    time_index: Optional[int] = Query(None, description="Temporal slice index (0 to 6)"),
 ):
     """Retrieve oceanographic point observation data from Copernicus Marine reanalysis."""
-    return ocean_service.get_sample_ocean_data(lat=lat, lon=lon, depth=depth)
+    return ocean_service.get_sample_ocean_data(lat=lat, lon=lon, depth=depth, date=date, time_index=time_index)
+
+
+@router.get(
+    "/ocean/profile",
+    response_model=VerticalProfileResponse,
+    summary="Get Vertical Ocean Depth Profile",
+    description=(
+        "Extracts real vertical depth profiles (temperature, salinity, density, current speed) "
+        "across all available depth levels down to 2000m from the Copernicus NetCDF dataset."
+    ),
+)
+async def get_vertical_profile(
+    lat: float = Query(10.57, description="Latitude in decimal degrees"),
+    lon: float = Query(72.63, description="Longitude in decimal degrees"),
+    station_id: Optional[str] = Query(None, description="Optional station identifier e.g. 'station-04' or 'CB01'"),
+    date: Optional[str] = Query(None, description="Observation date (e.g. '2026-06-17' to '2026-06-23')"),
+    time_index: Optional[int] = Query(None, description="Temporal slice index (0 to 6)"),
+):
+    """Retrieve complete vertical profile across all depth layers for the requested date."""
+    return ocean_service.get_vertical_profile(lat=lat, lon=lon, station_id=station_id, date=date, time_index=time_index)
 
 
 @router.get(
@@ -63,11 +88,15 @@ async def get_real_depths():
     "/stations",
     response_model=List[StationResponse],
     summary="List Observation Stations",
-    description="Returns all registered simulated ocean observation buoys and floats with physical telemetry.",
+    description="Returns registered ocean observation buoys and floats with physical telemetry sampled from Copernicus at the given date.",
 )
-async def get_stations():
-    """Retrieve list of all active ocean monitoring stations."""
-    return ocean_service.get_all_stations()
+async def get_stations(
+    date: Optional[str] = Query(None, description="Observation date (e.g. '2026-06-17' to '2026-06-23')"),
+    time_index: Optional[int] = Query(None, description="Temporal slice index (0 to 6)"),
+    depth: Optional[float] = Query(None, description="Depth level in meters (0.49 to 11.40)"),
+):
+    """Retrieve list of all active ocean monitoring stations sampled at date."""
+    return ocean_service.get_all_stations(date=date, time_index=time_index, depth=depth)
 
 
 @router.get(
@@ -87,10 +116,13 @@ async def get_stations():
     },
 )
 async def get_station_details(
-    station_id: str = Path(..., description="Unique station identifier, e.g., 'station-01'")
+    station_id: str = Path(..., description="Unique station identifier, e.g., 'station-01'"),
+    date: Optional[str] = Query(None, description="Observation date (e.g. '2026-06-17' to '2026-06-23')"),
+    time_index: Optional[int] = Query(None, description="Temporal slice index (0 to 6)"),
+    depth: Optional[float] = Query(None, description="Depth level in meters (0.49 to 11.40)"),
 ):
     """Retrieve details of a single observation station or return 404 if not found."""
-    station = ocean_service.get_station_by_id(station_id)
+    station = ocean_service.get_station_by_id(station_id, date=date, time_index=time_index, depth=depth)
     if not station:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -113,12 +145,26 @@ async def get_ocean_grid(
     stride: int = Query(15, ge=5, le=100, description="Spatial subsampling stride across lat/lon cells"),
     depth: Optional[float] = Query(None, description="Specific depth slice in meters (None returns 3 multi-depth layers)"),
     time_index: int = Query(-1, description="Time index in historical reanalysis dataset (-1 for latest available date)"),
+    date: Optional[str] = Query(None, description="Observation date (e.g. '2026-06-17' to '2026-06-23')"),
     skip_nan: bool = Query(True, description="Skip land / NaN cells to reduce JSON payload size"),
 ):
-    """Retrieve 3D spatial ocean data grid for rendering point-clouds and vector fields."""
+    """Retrieve 3D spatial ocean data grid for rendering point-clouds and vector fields at requested date."""
     return ocean_service.get_ocean_grid(
         stride=stride,
         depth=depth,
         time_index=time_index,
+        date=date,
         skip_nan=skip_nan,
     )
+
+
+@router.post(
+    "/ai/query",
+    response_model=AIAgentQueryResponse,
+    summary="Query Ocean AI Agent",
+    description="Interactively queries the Oceanographic AI Assistant for what-if scenarios, physical impacts, and marine advisory.",
+)
+async def query_ai_agent(req: AIAgentQueryRequest):
+    """Query Ocean AI Agent with station context and arbitrary user questions."""
+    return ocean_service.query_ocean_ai_agent(req)
+
