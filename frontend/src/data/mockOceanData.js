@@ -199,6 +199,28 @@ export const COPERNICUS_DAILY_STATION_TELEMETRY = {
   }
 };
 
+// Format hour number (0 to 24) to clean 12-Hour AM/PM representation
+export const formatHourAmPm = (hour = 0) => {
+  const safeHour = Math.max(0, Math.min(24, Number(hour || 0)));
+  const totalMinutes = Math.round(safeHour * 60);
+  let h = Math.floor(totalMinutes / 60) % 24;
+  const m = totalMinutes % 60;
+  const period = (safeHour >= 12 && safeHour < 24) ? 'PM' : 'AM';
+  let displayH = h % 12;
+  if (displayH === 0) displayH = 12;
+  const hStr = String(displayH).padStart(2, '0');
+  const mStr = String(m).padStart(2, '0');
+  return `${hStr}:${mStr} ${period}`;
+};
+
+// Full date and time timestamp with AM/PM and 24h UTC reference
+export const formatFullTimestamp = (dateStr = '2026-06-23', hour = 0) => {
+  const amPm = formatHourAmPm(hour);
+  const h24 = String(Math.floor(Number(hour || 0) % 24)).padStart(2, '0');
+  const m24 = String(Math.floor((Number(hour || 0) % 1) * 60)).padStart(2, '0');
+  return `${dateStr} • ${amPm} UTC (${h24}:${m24})`;
+};
+
 // Helper to compute time- and depth-adjusted values based on hour (0 - 24), date, and depth
 export const getStationObservationAtTime = (station, hour = 12, dateStr = '2026-06-23', depth = 0.49) => {
   if (!station) return null;
@@ -224,7 +246,7 @@ export const getStationObservationAtTime = (station, hour = 12, dateStr = '2026-
   const baseWave = rawWave;
   const baseDensity = +(1028.1 - 0.15 * baseTemp + 0.78 * (baseSalinity - 35) + 0.045 * depthNum).toFixed(2);
 
-  // Diurnal sinusoidal variation across 24 hours
+  // Diurnal sinusoidal variation across 24 hours (Peak solar insolation at 14:00 / 02:00 PM)
   const hourAngle = ((hour - 6) / 24) * 2 * Math.PI;
   // Diurnal thermal wave dampens with depth
   const thermalDamp = Math.exp(-depthNum / 5.0);
@@ -238,9 +260,10 @@ export const getStationObservationAtTime = (station, hour = 12, dateStr = '2026-
   const currentSpeed = +(Math.max(0.04, baseSpeed + currentVariation)).toFixed(3);
   const currentWave = +(Math.max(0.3, baseWave + waveVariation)).toFixed(1);
 
-  const formattedHour = String(Math.floor(hour)).padStart(2, '0');
+  const amPmTime = formatHourAmPm(hour);
+  const formattedHour = String(Math.floor(hour % 24)).padStart(2, '0');
   const formattedMin = String(Math.floor((hour % 1) * 60)).padStart(2, '0');
-  const timestamp = `${dateStr} ${formattedHour}:${formattedMin} UTC`;
+  const timestamp = `${dateStr} • ${amPmTime} UTC (${formattedHour}:${formattedMin})`;
 
   return {
     ...station,
@@ -260,6 +283,7 @@ export const getStationObservationAtTime = (station, hour = 12, dateStr = '2026-
     currentSalinity,
     currentSpeed,
     currentWave,
+    timeAmPm: amPmTime,
     timestamp
   };
 };
@@ -307,6 +331,7 @@ export const generateTimeSeriesData = (station, variable = 'Temperature', dateSt
 
     timePoints.push({
       time: timeLabel,
+      timeAmPm: formatHourAmPm(h),
       hour: h,
       temperature: obsTemp,
       modelTemperature: modelTemp,

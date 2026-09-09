@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import OceanScene from '../components/OceanScene';
 import SimulationControls from '../components/SimulationControls';
+import TimeControls from '../components/TimeControls';
 import { 
   Globe2, 
   Box, 
@@ -74,6 +75,20 @@ export default function Ocean3DView({
           setSimulationScenario={setSimulationScenario}
         />
       )}
+
+      {/* TEMPORAL CONTROLS: TIME DIMENSION (AM/PM SYNCHRONIZED) */}
+      <TimeControls
+        currentTimeHour={currentTimeHour}
+        setCurrentTimeHour={setCurrentTimeHour}
+        isPlaying={isPlaying}
+        setIsPlaying={setIsPlaying}
+        selectedDate={selectedDate}
+        setSelectedDate={setSelectedDate}
+        startDate={startDate}
+        endDate={endDate}
+        station={selectedStation}
+        dataSource={dataSource}
+      />
 
       {/* TOP HEADER CONTROLS */}
       <div className="bg-[#0b1325]/95 border border-slate-800/90 rounded-2xl px-4 py-3 shadow-xl flex flex-wrap items-center justify-between gap-3 shrink-0">

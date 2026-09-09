@@ -19,7 +19,7 @@ import {
   Calendar,
   Layers
 } from 'lucide-react';
-import { getStationAccuracyMetrics } from '../data/mockOceanData';
+import { getStationAccuracyMetrics, formatHourAmPm } from '../data/mockOceanData';
 
 /**
  * ModelObservationComparisonCard
@@ -129,7 +129,7 @@ export default function ModelObservationComparisonCard({
 
   // Formatted date & time
   const hourStr = String(Math.floor(currentTimeHour)).padStart(2, '0');
-  const syncTimestamp = `${selectedDate} ${hourStr}:00 UTC`;
+  const syncTimestamp = `${selectedDate} • ${formatHourAmPm(currentTimeHour)} UTC (${hourStr}:00)`;
 
   // Table rows comparing core physical oceanography parameters for both Model and In-Situ
   const comparisonRows = [
@@ -653,11 +653,12 @@ export default function ModelObservationComparisonCard({
                   {/* Vertical Hour Grid */}
                   {[0, 6, 12, 18, 24].map((h) => {
                     const x = 25 + (h / 24) * 430;
+                    const amPmMap = { 0: '12 AM', 6: '6 AM', 12: '12 PM', 18: '6 PM', 24: '12 AM' };
                     return (
                       <g key={h}>
                         <line x1={x} y1="14" x2={x} y2="86" stroke="#1e293b" strokeDasharray="2 2" strokeWidth="0.8" />
                         <text x={x} y="96" textAnchor="middle" fontSize="8" fill="#64748b" fontFamily="monospace">
-                          {String(h).padStart(2, '0')}:00
+                          {amPmMap[h] || `${h}:00`}
                         </text>
                       </g>
                     );
@@ -782,11 +783,12 @@ export default function ModelObservationComparisonCard({
                   {/* Vertical Hour Grid */}
                   {[0, 6, 12, 18, 24].map((h) => {
                     const x = 25 + (h / 24) * 430;
+                    const amPmMap = { 0: '12 AM', 6: '6 AM', 12: '12 PM', 18: '6 PM', 24: '12 AM' };
                     return (
                       <g key={h}>
                         <line x1={x} y1="14" x2={x} y2="86" stroke="#1e293b" strokeDasharray="2 2" strokeWidth="0.8" />
                         <text x={x} y="96" textAnchor="middle" fontSize="8" fill="#64748b" fontFamily="monospace">
-                          {String(h).padStart(2, '0')}:00
+                          {amPmMap[h] || `${h}:00`}
                         </text>
                       </g>
                     );
@@ -911,11 +913,12 @@ export default function ModelObservationComparisonCard({
                   {/* Vertical Hour Grid */}
                   {[0, 6, 12, 18, 24].map((h) => {
                     const x = 25 + (h / 24) * 430;
+                    const amPmMap = { 0: '12 AM', 6: '6 AM', 12: '12 PM', 18: '6 PM', 24: '12 AM' };
                     return (
                       <g key={h}>
                         <line x1={x} y1="14" x2={x} y2="86" stroke="#1e293b" strokeDasharray="2 2" strokeWidth="0.8" />
                         <text x={x} y="96" textAnchor="middle" fontSize="8" fill="#64748b" fontFamily="monospace">
-                          {String(h).padStart(2, '0')}:00
+                          {amPmMap[h] || `${h}:00`}
                         </text>
                       </g>
                     );

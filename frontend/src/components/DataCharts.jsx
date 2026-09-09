@@ -393,7 +393,7 @@ export default function DataCharts({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-left">
               {timeSeriesData.slice(0, 8).map((t, idx) => (
                 <div key={idx} className="bg-[#070d19] p-2 rounded-lg border border-slate-800 text-[11px] font-mono">
-                  <div className="text-sky-400 font-bold">{t.time} UTC</div>
+                  <div className="text-sky-400 font-bold">{t.timeAmPm || `${t.time} UTC`}</div>
                   <div>Temp: {t.temperature} °C</div>
                   <div>Sal: {t.salinity} PSU</div>
                   <div>Speed: {t.currentSpeed} m/s</div>

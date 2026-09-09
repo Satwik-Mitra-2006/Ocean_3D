@@ -7,7 +7,7 @@ import ObservationMarker, { latLonToVector3 } from './ObservationMarker';
 import OceanCrossSection, { COPERNICUS_REAL_DEPTHS, depthToY } from './OceanCrossSection';
 import OceanFlowParticleSystem from './OceanFlowParticleSystem';
 import { oceanDataService } from '../services/oceanDataService';
-import { getStationAccuracyMetrics } from '../data/mockOceanData';
+import { getStationAccuracyMetrics, formatHourAmPm } from '../data/mockOceanData';
 import { 
   Play, 
   Pause, 
@@ -375,6 +375,7 @@ export default function OceanScene({
                 primaryVariable={primaryVariable}
                 opacity={opacity}
                 isAutoRotate={isAutoRotate}
+                currentTimeHour={currentTimeHour}
               />
 
               {layers.currents !== false && (
@@ -479,7 +480,7 @@ export default function OceanScene({
             <span className="text-slate-500">|</span>
             <span className="text-sky-300 font-bold">Depth: {Number(internalDepth).toFixed(2)}m</span>
             <span className="text-slate-500">|</span>
-            <span className="text-slate-400">{selectedDate} UTC</span>
+            <span className="text-sky-200 font-bold">{selectedDate} • {formatHourAmPm(currentTimeHour)} UTC</span>
           </div>
 
           {/* Loading or Unavailable Indicator */}

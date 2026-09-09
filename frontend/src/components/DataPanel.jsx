@@ -3,7 +3,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import OceanAIAgent from './OceanAIAgent';
-import { COPERNICUS_DAILY_STATION_TELEMETRY, getStationAccuracyMetrics } from '../data/mockOceanData';
+import { COPERNICUS_DAILY_STATION_TELEMETRY, getStationAccuracyMetrics, formatHourAmPm } from '../data/mockOceanData';
 
 export default function DataPanel({
   selectedStation,
@@ -51,15 +51,18 @@ export default function DataPanel({
 
   const isModel = dataSource === 'model';
   
-  // Real-world physical base values
+  const stnCode = station?.code || (station?.name && station?.name.includes('CB01') ? 'CB01' : 'BD08');
+  const stnAccuracy = useMemo(() => getStationAccuracyMetrics(stnCode), [stnCode]);
+
+  // Real-world physical base values (which update dynamically with currentTimeHour and date)
   const baseTemp = Number(station.temperature ?? station.currentTemp ?? station.baseTemp ?? 29.11);
   const baseSal = Number(station.salinity ?? station.currentSalinity ?? station.baseSalinity ?? 35.09);
   const baseSpeed = Number(station.current_speed ?? station.currentSpeed ?? station.baseSpeed ?? 0.231);
 
-  // Model reanalysis value: incorporates standard Copernicus ~0.24°C reanalysis offset
-  const modelTemp = +(baseTemp - 0.24).toFixed(2);
-  const modelSal = +(baseSal + 0.08).toFixed(2);
-  const modelSpeed = +(baseSpeed * 0.94).toFixed(3);
+  // Model reanalysis value: incorporates station-specific predictive accuracy bias
+  const modelTemp = +(baseTemp + (stnAccuracy.biasT || -0.24)).toFixed(2);
+  const modelSal = +(baseSal + (stnAccuracy.biasS || 0.08)).toFixed(2);
+  const modelSpeed = +(Math.max(0.04, baseSpeed + (stnAccuracy.biasSpeed || -0.015))).toFixed(3);
 
   // In-Situ sensor reading: direct physical moored instrument telemetry
   const insituTemp = +(baseTemp).toFixed(2);
@@ -71,12 +74,10 @@ export default function DataPanel({
   const displaySpeed = isModel ? modelSpeed : insituSpeed;
   const dirVal = station.current_dir_compass || `${Math.round(station.current_direction || 102)}° ESE`;
   
-  // Format exact synchronized date and time
+  // Format exact synchronized date and time in AM/PM format
   const hourStr = String(Math.floor(currentTimeHour || 0)).padStart(2, '0');
-  const timeStr = `${selectedDate || '2026-06-23'} ${hourStr}:00 UTC`;
-
-  const stnCode = station?.code || (station?.name && station?.name.includes('CB01') ? 'CB01' : 'BD08');
-  const stnAccuracy = useMemo(() => getStationAccuracyMetrics(stnCode), [stnCode]);
+  const amPmStr = formatHourAmPm(currentTimeHour);
+  const timeStr = `${selectedDate || '2026-06-23'} • ${amPmStr} UTC (${hourStr}:00)`;
 
   // Compute dynamic sparkline points for the days within the chosen date range (17/06/2026 to 23/06/2026)
   // Bound to Copernicus Marine NetCDF daily physical reanalysis

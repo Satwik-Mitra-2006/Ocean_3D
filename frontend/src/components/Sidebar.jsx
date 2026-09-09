@@ -5,8 +5,14 @@ import {
   Wind, 
   Calendar,
   ChevronDown,
-  Radio
+  Radio,
+  Clock,
+  Play,
+  Pause,
+  Sun,
+  Moon
 } from 'lucide-react';
+import { formatHourAmPm } from '../data/mockOceanData';
 
 export default function Sidebar({
   layers = {},
@@ -232,6 +238,50 @@ export default function Sidebar({
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        {/* Hourly Diurnal Time Dimension (AM/PM Synchronized) */}
+        <div className="pt-2 border-t border-slate-800/80 flex flex-col gap-1.5">
+          <div className="text-[10px] font-mono text-slate-400 flex items-center justify-between">
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3 text-sky-400" />
+              <span>Time (AM/PM):</span>
+            </span>
+            <span className="text-sky-300 font-bold px-1.5 py-0.2 rounded bg-sky-950/80 border border-sky-500/30">
+              {formatHourAmPm(currentTimeHour)} UTC
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsPlaying && setIsPlaying(!isPlaying)}
+              title={isPlaying ? 'Pause Diurnal Cycle' : 'Play Diurnal Cycle'}
+              className={`p-1 rounded-lg text-white text-[10px] font-bold cursor-pointer transition-all ${
+                isPlaying ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-500'
+              }`}
+            >
+              {isPlaying ? <Pause className="h-3 w-3 fill-white" /> : <Play className="h-3 w-3 fill-white" />}
+            </button>
+
+            <input
+              type="range"
+              min="0"
+              max="24"
+              step="0.25"
+              value={currentTimeHour}
+              onChange={(e) => setCurrentTimeHour && setCurrentTimeHour(parseFloat(e.target.value))}
+              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            />
+          </div>
+
+          <div className="flex justify-between text-[8px] font-mono text-slate-500">
+            <span className="cursor-pointer hover:text-sky-300" onClick={() => setCurrentTimeHour && setCurrentTimeHour(0)}>12 AM</span>
+            <span className="cursor-pointer hover:text-sky-300" onClick={() => setCurrentTimeHour && setCurrentTimeHour(6)}>6 AM</span>
+            <span className="cursor-pointer hover:text-sky-300" onClick={() => setCurrentTimeHour && setCurrentTimeHour(12)}>12 PM</span>
+            <span className="cursor-pointer hover:text-sky-300" onClick={() => setCurrentTimeHour && setCurrentTimeHour(18)}>6 PM</span>
+            <span className="cursor-pointer hover:text-sky-300" onClick={() => setCurrentTimeHour && setCurrentTimeHour(24)}>12 AM</span>
           </div>
         </div>
       </div>

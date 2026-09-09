@@ -6,12 +6,14 @@ import DataPanel from './components/DataPanel';
 import DataCharts from './components/DataCharts';
 import SettingsModal from './components/SettingsModal';
 import SimulationControls from './components/SimulationControls';
+import TimeControls from './components/TimeControls';
 import ModelObservationComparisonCard from './components/ModelObservationComparisonCard';
 import { 
   OBSERVATION_STATIONS, 
   getStationObservationAtTime,
   generateTimeSeriesData,
-  generateDepthProfileData
+  generateDepthProfileData,
+  formatHourAmPm
 } from './data/mockOceanData';
 import { oceanDataService } from './services/oceanDataService';
 import Ocean3DView from './views/Ocean3DView';
@@ -205,14 +207,20 @@ export default function App() {
         const thermalDamp = Math.exp(-Number(selectedDepth) / 5.0);
         const tVar = Math.sin(hourAngle) * (0.45 * thermalDamp);
         const sVar = Math.sin(hourAngle * 0.5) * (0.05 * thermalDamp);
+        const vVar = Math.cos(hourAngle * 2) * (0.05 * thermalDamp);
+
+        const calcTemp = +(nearest.temperature + tVar).toFixed(2);
+        const calcSal = +(nearest.salinity + sVar).toFixed(2);
+        const calcSpeed = +(Math.max(0.04, (nearest.current_speed || 0.25) + vVar)).toFixed(3);
+        const calcDensity = +(1028.1 - 0.15 * calcTemp + 0.78 * (calcSal - 35) + 0.045 * Number(selectedDepth)).toFixed(2);
 
         base = {
           ...base,
           depth: selectedDepth,
-          temperature: +(nearest.temperature + tVar).toFixed(2),
-          salinity: +(nearest.salinity + sVar).toFixed(2),
-          current_speed: nearest.current_speed,
-          density: nearest.density
+          temperature: calcTemp,
+          salinity: calcSal,
+          current_speed: calcSpeed,
+          density: calcDensity
         };
       }
     }
@@ -243,12 +251,14 @@ export default function App() {
       }
     }
 
-    // Synchronize exact selected date and time in timestamp
+    // Synchronize exact selected date and time in AM/PM timestamp
     const dateFormatted = selectedDate || '2026-06-23';
+    const amPmStr = formatHourAmPm(currentTimeHour);
     const hourStr = String(Math.floor(currentTimeHour)).padStart(2, '0');
     base = {
       ...base,
-      timestamp: `${dateFormatted} ${hourStr}:00 UTC`
+      timeAmPm: amPmStr,
+      timestamp: `${dateFormatted} • ${amPmStr} UTC (${hourStr}:00)`
     };
 
     return base;
@@ -285,6 +295,20 @@ export default function App() {
             <SimulationControls
               simulationScenario={simulationScenario}
               setSimulationScenario={setSimulationScenario}
+            />
+
+            {/* TEMPORAL CONTROLS: TIME DIMENSION (AM/PM SYNCHRONIZED) */}
+            <TimeControls
+              currentTimeHour={currentTimeHour}
+              setCurrentTimeHour={setCurrentTimeHour}
+              isPlaying={isPlaying}
+              setIsPlaying={setIsPlaying}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              startDate={startDate}
+              endDate={endDate}
+              station={liveStationData || selectedStation}
+              dataSource={dataSource}
             />
 
             {/* TOP ROW: 4-COLUMN VIEWPORT LAYOUT */}

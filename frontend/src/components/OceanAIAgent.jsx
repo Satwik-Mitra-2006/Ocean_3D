@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Bot, 
   Send, 
@@ -14,7 +14,10 @@ import {
   ChevronRight,
   HelpCircle,
   Cpu,
-  Layers
+  Layers,
+  Volume2,
+  VolumeX,
+  Radio
 } from 'lucide-react';
 import { oceanDataService } from '../services/oceanDataService';
 
@@ -69,6 +72,83 @@ export default function OceanAIAgent({
   const [inputQuery, setInputQuery] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const chatBottomRef = useRef(null);
+
+  // ── Voice Read-Out State (Web Speech API) ──────────────────────────
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [speakingMsgId, setSpeakingMsgId] = useState(null);
+  const speechRef = useRef(null);
+  // Chrome loads voices async; cache them here so speakMessage always has voices
+  const voicesRef = useRef([]);
+
+  useEffect(() => {
+    const loadVoices = () => {
+      const v = window.speechSynthesis?.getVoices() || [];
+      if (v.length > 0) voicesRef.current = v;
+    };
+    loadVoices(); // works immediately in Firefox
+    if (window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = loadVoices; // works in Chrome
+    }
+    return () => {
+      if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = null;
+      window.speechSynthesis?.cancel();
+    };
+  }, []);
+
+  // Strip common markdown symbols so TTS sounds natural
+  const stripMarkdown = useCallback((text) => {
+    return text
+      .replace(/#{1,6}\s*/g, '')        // headings
+      .replace(/\*\*(.*?)\*\*/g, '$1')  // bold
+      .replace(/\*(.*?)\*/g, '$1')      // italic
+      .replace(/`([^`]+)`/g, '$1')      // inline code
+      .replace(/\|.*?\|/g, '')          // table pipes
+      .replace(/\n{2,}/g, '. ')         // paragraph breaks → pause
+      .replace(/\n/g, ' ')
+      .replace(/•/g, '')
+      .replace(/[→←↑↓]/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }, []);
+
+  // Speak a message — cancels any current speech first
+  const speakMessage = useCallback((msg) => {
+    if (!('speechSynthesis' in window)) return;
+
+    window.speechSynthesis.cancel();
+
+    if (speakingMsgId === msg.id) {
+      // Toggle off: already speaking this message
+      setSpeakingMsgId(null);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(stripMarkdown(msg.text));
+    utterance.lang = 'en-US';
+    utterance.rate = 0.9;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    // Use cached voices (populated by onvoiceschanged)
+    const voices = voicesRef.current;
+    const preferred =
+      voices.find(v => v.lang === 'en-US' && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha'))) ||
+      voices.find(v => v.lang === 'en-US') ||
+      voices.find(v => v.lang.startsWith('en'));
+    if (preferred) utterance.voice = preferred;
+
+    utterance.onstart = () => setSpeakingMsgId(msg.id);
+    utterance.onend = () => setSpeakingMsgId(null);
+    utterance.onerror = () => setSpeakingMsgId(null);
+
+    speechRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+  }, [speakingMsgId, stripMarkdown]);
+
+  // Stop all speech when component unmounts
+  useEffect(() => {
+    return () => { window.speechSynthesis?.cancel(); };
+  }, []);
 
   // Auto-scroll chat to latest message
   useEffect(() => {
@@ -392,24 +472,46 @@ export default function OceanAIAgent({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            setMessages([
-              {
-                id: Date.now(),
-                sender: 'agent',
-                text: `Session reset. Station **${stName}** active. Temp: **${tempVal}°C**, Salinity: **${salVal} PSU**, Depth: **${depthVal}m**, Waves: **${waveVal}m**.\n\nWhat would you like to ask about maritime travel, cyclone safety, or ocean physics?`,
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                impacts: ['Context refreshed with real Copernicus parameters']
-              }
-            ]);
-          }}
-          title="Reset Chat"
-          className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors cursor-pointer"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-        </button>
+        <div className="flex items-center gap-1">
+          {/* Global Voice Toggle */}
+          <button
+            type="button"
+            onClick={() => {
+              if (voiceEnabled) { window.speechSynthesis?.cancel(); setSpeakingMsgId(null); }
+              setVoiceEnabled(v => !v);
+            }}
+            title={voiceEnabled ? 'Mute Voice Read-Out' : 'Enable Voice Read-Out'}
+            className={`p-1 rounded-lg transition-colors cursor-pointer ${
+              voiceEnabled
+                ? 'text-sky-400 hover:text-sky-300 hover:bg-slate-800/60'
+                : 'text-slate-500 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            {voiceEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+          </button>
+
+          {/* Reset Chat */}
+          <button
+            type="button"
+            onClick={() => {
+              window.speechSynthesis?.cancel();
+              setSpeakingMsgId(null);
+              setMessages([
+                {
+                  id: Date.now(),
+                  sender: 'agent',
+                  text: `Session reset. Station **${stName}** active. Temp: **${tempVal}°C**, Salinity: **${salVal} PSU**, Depth: **${depthVal}m**, Waves: **${waveVal}m**.\n\nWhat would you like to ask about maritime travel, cyclone safety, or ocean physics?`,
+                  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                  impacts: ['Context refreshed with real Copernicus parameters']
+                }
+              ]);
+            }}
+            title="Reset Chat"
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors cursor-pointer"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* 2. Live Telemetry Context Ticker */}
@@ -469,7 +571,7 @@ export default function OceanAIAgent({
                     : 'bg-blue-600 text-white rounded-br-sm'
                 }`}
               >
-                {/* Agent Tag */}
+                {/* Agent Tag + Speaker Button */}
                 {isAgent && (
                   <div className="flex items-center gap-1 text-[10px] font-bold text-sky-400 mb-1">
                     <Bot className="h-3 w-3" />
@@ -477,6 +579,24 @@ export default function OceanAIAgent({
                     <span className="text-slate-500 font-normal ml-auto font-mono text-[9px]">
                       {msg.timestamp}
                     </span>
+                    {/* Per-message speak button */}
+                    <button
+                      type="button"
+                      onClick={() => voiceEnabled && speakMessage(msg)}
+                      title={speakingMsgId === msg.id ? 'Stop reading' : (voiceEnabled ? 'Read aloud' : 'Voice is muted')}
+                      className={`ml-1 p-0.5 rounded transition-colors cursor-pointer ${
+                        !voiceEnabled
+                          ? 'text-slate-600 cursor-not-allowed'
+                          : speakingMsgId === msg.id
+                          ? 'text-sky-300 animate-pulse bg-sky-900/40 rounded'
+                          : 'text-slate-500 hover:text-sky-400'
+                      }`}
+                    >
+                      {speakingMsgId === msg.id
+                        ? <Radio className="h-3 w-3" />
+                        : <Volume2 className="h-3 w-3" />
+                      }
+                    </button>
                   </div>
                 )}
 
