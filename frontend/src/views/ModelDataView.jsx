@@ -50,8 +50,9 @@ export default function ModelDataView({
     setIsProbing(true);
     setShowTerminal(true);
     const start = performance.now();
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
     try {
-      await fetch('http://127.0.0.1:8000/api/health', { signal: AbortSignal.timeout(1500) });
+      await fetch(`${apiUrl}/health`, { signal: AbortSignal.timeout(1500) });
       const elapsed = Math.round(performance.now() - start);
       setProbeLatency(Math.max(18, elapsed));
     } catch {

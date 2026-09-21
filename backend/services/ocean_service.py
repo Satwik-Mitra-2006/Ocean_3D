@@ -168,6 +168,17 @@ class OceanService:
         self._ds: Optional[xr.Dataset] = None
         self.dataset_metadata: Optional[DatasetMetadata] = None
 
+        # Preload exact Copernicus station telemetry JSON for resilient cloud/production serving
+        self._telemetry_json: Dict = {}
+        telemetry_file = Path(__file__).resolve().parent.parent / "data" / "exact_station_surface_telemetry.json"
+        if telemetry_file.exists():
+            try:
+                import json
+                with open(telemetry_file, "r", encoding="utf-8") as f:
+                    self._telemetry_json = json.load(f)
+            except Exception as e:
+                logger.warning("Could not load telemetry json: %s", e)
+
         if self._dataset_path and self._dataset_path.exists():
             self._init_dataset()
 
@@ -611,6 +622,15 @@ class OceanService:
                     time_str = self._format_time_val(point.time.values)
             except Exception as e:
                 logger.warning("Could not sample NetCDF for station %s at date %s: %s", st.get("id"), date_str, e)
+        elif hasattr(self, "_telemetry_json") and self._telemetry_json:
+            st_code = st.get("code") or st.get("id")
+            if st_code in self._telemetry_json:
+                daily = self._telemetry_json[st_code].get(date_str) or self._telemetry_json[st_code].get("2026-06-23")
+                if daily:
+                    t_val = daily.get("temp", t_val)
+                    s_val = daily.get("sal", s_val)
+                    u_val = daily.get("u", u_val)
+                    v_val = daily.get("v", v_val)
 
         # Apply physical vertical water column stratification (Thermocline & Halocline)
         if req_depth > 0.49:

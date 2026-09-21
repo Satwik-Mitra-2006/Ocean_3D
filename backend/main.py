@@ -6,13 +6,19 @@ Handles CORS, application lifecycle, root diagnostics, and router attachment.
 """
 
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# Ensure backend root is always in Python module search path
+backend_dir = Path(__file__).resolve().parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
 # Load environment variables from .env file
-env_path = Path(__file__).resolve().parent / ".env"
+env_path = backend_dir / ".env"
 load_dotenv(dotenv_path=env_path)
 
 from api.routes import router as api_router
@@ -23,11 +29,8 @@ APP_NAME = os.getenv("APP_NAME", "Ocean3D Visualization Platform Backend")
 APP_VERSION = os.getenv("APP_VERSION", "1.0.0")
 APP_ENV = os.getenv("APP_ENV", "development")
 
-# Comma-separated CORS origins
-raw_origins = os.getenv(
-    "CORS_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000",
-)
+# Comma-separated CORS origins (defaults to '*' so Vercel frontend connects seamlessly)
+raw_origins = os.getenv("CORS_ORIGINS", "*")
 allowed_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
 
 # Initialize FastAPI application
@@ -44,10 +47,11 @@ app = FastAPI(
 )
 
 # Configure Cross-Origin Resource Sharing (CORS) for React frontend
+is_wildcard = "*" in allowed_origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_origins=["*"] if is_wildcard else allowed_origins,
+    allow_credentials=not is_wildcard,
     allow_methods=["*"],
     allow_headers=["*"],
 )
