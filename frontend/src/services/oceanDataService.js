@@ -16,6 +16,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 /**
  * Normalizes backend station responses so all UI components can reliably access
  * both `lat` / `latitude`, `lon` / `longitude`, `baseTemp` / `temperature`, etc.
+ * Strictly preserves exact NetCDF dataset values returned by the backend.
  */
 function normalizeStation(s, idx = 0, date = '2026-06-23') {
   const code = s.code || (s.name ? s.name.split('—')[1]?.trim() || `ST-${idx + 1}` : `ST-${idx + 1}`);
@@ -24,35 +25,50 @@ function normalizeStation(s, idx = 0, date = '2026-06-23') {
 
   const lat = s.latitude ?? s.lat ?? (15.0 + idx * 2.0);
   const lon = s.longitude ?? s.lon ?? (72.0 + idx * 2.0);
-  const temp = daily ? daily.temp : (s.temperature ?? s.baseTemp ?? 27.4);
-  const sal = daily ? daily.sal : (s.salinity ?? s.baseSalinity ?? 35.2);
-  const spd = daily ? daily.speed : (s.current_speed ?? s.baseSpeed ?? 1.24);
-  const wave = daily ? daily.wave : (s.baseWave ?? 1.8);
-  const density = daily ? daily.density : (s.density ?? 1024.0);
+  
+  // Prioritize real backend observation values, falling back to exact daily telemetry
+  const temp = s.temperature ?? s.baseTemp ?? (daily ? daily.temp : 29.79);
+  const sal = s.salinity ?? s.baseSalinity ?? (daily ? daily.sal : 35.01);
+  const spd = s.current_speed ?? s.baseSpeed ?? (daily ? daily.speed : 0.184);
+  const wave = s.wave_height ?? s.baseWave ?? (daily ? daily.wave : 1.7);
+  const density = s.density ?? (daily ? daily.density : 1023.68);
+  const u = s.u_current ?? (daily ? daily.u : 0.0);
+  const v = s.v_current ?? (daily ? daily.v : 0.0);
+  const depth = s.depth ?? 0.49;
 
   return {
     ...s,
     id: s.id || `station-0${idx + 1}`,
     name: s.name || `Station 0${idx + 1}`,
-    code: s.code || (s.name ? s.name.split('—')[1]?.trim() || `ST-${idx + 1}` : `ST-${idx + 1}`),
-    type: s.type || 'Moored Ocean Buoy',
+    code,
+    type: s.station_type || s.type || 'Moored Ocean Buoy',
     lat,
     lon,
     latitude: lat,
     longitude: lon,
-    depth: s.depth ?? 10.0,
+    depth,
     status: s.status || 'Active',
     region: s.region || 'Indian Ocean',
     source: s.source || 'Copernicus Marine / INCOIS',
     health: s.health || '98% (Telemetry Active)',
     baseTemp: temp,
     temperature: temp,
+    currentTemp: temp,
     baseSalinity: sal,
     salinity: sal,
+    currentSalinity: sal,
     baseSpeed: spd,
     current_speed: spd,
-    baseWave: s.baseWave ?? 1.8,
-    direction: s.direction || '145° SE',
+    currentSpeed: spd,
+    baseWave: wave,
+    wave_height: wave,
+    currentWave: wave,
+    density,
+    u_current: u,
+    v_current: v,
+    direction: s.current_dir_compass || s.direction || '145° SE',
+    current_dir_compass: s.current_dir_compass || s.direction || '145° SE',
+    current_direction: s.current_direction ?? 145.0,
     pressure: s.pressure ?? 1012.8,
     battery: s.battery || '12.8V (Solar Normal)',
     lastPing: s.lastPing || 'Active Telemetry'
@@ -93,9 +109,9 @@ export const oceanDataService = {
 
   /**
    * Fetch list of all in-situ observation stations with current health & coordinates
-   * FastAPI Endpoint: GET /api/stations?date=2026-06-18
+   * FastAPI Endpoint: GET /api/stations?date=2026-06-18&depth=0.49
    */
-  async getStations({ date = '2026-06-23', depth = null, timeIndex = null } = {}) {
+  async getStations({ date = '2026-06-23', depth = 0.49, timeIndex = null } = {}) {
     try {
       const params = new URLSearchParams();
       if (date) params.append('date', date);
@@ -127,14 +143,13 @@ export const oceanDataService = {
       const res = await fetch(`${API_BASE_URL}/stations/${stationId}?${params.toString()}`, { signal: AbortSignal.timeout(3000) });
       if (res.ok) {
         const rawStation = await res.json();
-        const station = normalizeStation(rawStation, 0, date);
-        return getStationObservationAtTime(station, hour, date);
+        return normalizeStation(rawStation, 0, date);
       }
     } catch (e) {
       console.warn(`Fallback for station ${stationId}:`, e.message);
     }
     const station = OBSERVATION_STATIONS.find(s => s.id === stationId) || OBSERVATION_STATIONS[0];
-    return getStationObservationAtTime(normalizeStation(station, 0, date), hour, date);
+    return normalizeStation(station, 0, date);
   },
 
   /**

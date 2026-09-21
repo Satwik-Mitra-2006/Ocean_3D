@@ -7,9 +7,14 @@
     <title>Ocean3D — Interactive Ocean Visualization Platform</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet">
   </head>
-  <body class="bg-slate-50 text-slate-900 antialiased selection:bg-cyan-500/20 selection:text-cyan-900">
+  <body class="text-slate-100 antialiased selection:bg-cyan-500/30 selection:text-white" style="margin: 0; padding: 0; background-color: #020814;">
+    <!-- Ambient Underwater Mountain Ridges preserved at bottom -->
+    <div
+      id="bg-ocean-mountains"
+      style="position: fixed; bottom: 0; left: 0; width: 100vw; height: 260px; background-image: url('/deep_ocean_bg.jpg'); background-position: center bottom; background-size: 100% auto; background-repeat: no-repeat; -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0) 100%); mask-image: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0) 100%); z-index: -999; pointer-events: none; opacity: 0.85;"
+    ></div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

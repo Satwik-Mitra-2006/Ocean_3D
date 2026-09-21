@@ -1,170 +1,193 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-/**
- * Clean Photorealistic Satellite Earth Globe
- * - High-res NASA Blue Marble satellite Earth texture with real continents, oceans, snow, and vegetation.
- * - Removed harsh/blotchy color overlays per user request.
- * - Subtle specular reflections on ocean surface.
- * - Soft cyan atmospheric rim halo.
- * - Smooth OrbitControls interaction and optional idle auto-rotation.
- * - Day/Night Solar Terminator: Custom GLSL shader overlay that darkens the night-side of the globe
- *   based on the currentTimeHour (0-23). The sun direction is computed from the hour angle so that
- *   at 12:00 the sub-solar point is at the center of the visible hemisphere and at 00:00 (midnight)
- *   the entire visible face is in shadow.
- */
+// Fallback high-res procedural Earth texture so the globe is NEVER blank or black
+function createProceduralEarthTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 2048;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.Texture();
 
-// GLSL Solar Terminator Shader Material
-const terminatorVertexShader = `
-  varying vec3 vNormal;
-  varying vec3 vWorldPosition;
+  // 1. Rich Deep Ocean Gradient
+  const oceanGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  oceanGrad.addColorStop(0, '#041527');     // Polar North
+  oceanGrad.addColorStop(0.25, '#072445');  // Mid North
+  oceanGrad.addColorStop(0.45, '#09315d');  // Arabian Sea & Bay of Bengal Deep Blue
+  oceanGrad.addColorStop(0.55, '#072b52');  // Tropical Indian Ocean
+  oceanGrad.addColorStop(0.8, '#06203d');   // Southern Indian Ocean
+  oceanGrad.addColorStop(1, '#030f1c');     // Polar South
+  ctx.fillStyle = oceanGrad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  void main() {
-    vNormal = normalize(normalMatrix * normal);
-    vec4 worldPos = modelMatrix * vec4(position, 1.0);
-    vWorldPosition = worldPos.xyz;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  function toX(lon) { return ((lon + 180) / 360) * canvas.width; }
+  function toY(lat) { return ((90 - lat) / 180) * canvas.height; }
+
+  // 2. Continental Shelf Shading
+  const drawShelfGlow = (coords) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(toX(coords[0][0]), toY(coords[0][1]));
+    for (let i = 1; i < coords.length; i++) {
+      ctx.lineTo(toX(coords[i][0]), toY(coords[i][1]));
+    }
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+    ctx.lineWidth = 14;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(14, 165, 233, 0.25)';
+    ctx.lineWidth = 26;
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  const indiaCoords = [
+    [68, 24], [70, 23], [72.5, 21.5], [72.8, 19], [73.5, 16], [74.5, 13.5], [76, 10.2], 
+    [77.5, 8.1], [78.5, 9.2], [79.8, 10.5], [80.3, 13], [82, 16], [85, 19.5], [87, 21.5], [88.5, 22.5], 
+    [89.5, 24], [92, 26], [89, 27.5], [85, 28], [80, 31], [76, 33], [74, 34.5], 
+    [72, 33], [70, 28], [68, 24]
+  ];
+  const sriLankaCoords = [[80, 9.8], [81.8, 8.5], [81.5, 6.5], [79.9, 7.2], [80, 9.8]];
+  const arabiaCoords = [[43, 13], [48, 14], [54, 17], [59, 22.5], [56, 26], [50, 29], [40, 28], [35, 28], [43, 13]];
+  const africaCoords = [
+    [32, 31], [40, 30], [43, 13], [51, 11], [45, 1], [40, -5], [35, -15],
+    [30, -30], [20, -34], [18, -33], [14, -22], [10, -5], [5, 5],
+    [-15, 12], [-17, 15], [-5, 35], [10, 37], [25, 32], [32, 31]
+  ];
+  const seAsiaCoords = [[98, 8], [104, 1.5], [103, 14], [108, 16], [108, 21], [100, 20], [98, 8]];
+
+  drawShelfGlow(indiaCoords);
+  drawShelfGlow(sriLankaCoords);
+  drawShelfGlow(arabiaCoords);
+
+  const drawLand = (coords, fillColor = '#1b4a30', strokeColor = '#38bdf8', lineWidth = 2) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(toX(coords[0][0]), toY(coords[0][1]));
+    for (let i = 1; i < coords.length; i++) {
+      ctx.lineTo(toX(coords[i][0]), toY(coords[i][1]));
+    }
+    ctx.closePath();
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  drawLand(africaCoords, '#242b35', 'rgba(56, 189, 248, 0.5)', 1.5);
+  drawLand(arabiaCoords, '#383226', 'rgba(250, 204, 21, 0.6)', 1.5);
+  drawLand(seAsiaCoords, '#1b382b', 'rgba(56, 189, 248, 0.5)', 1.5);
+  drawLand([
+    [114, -22], [122, -15], [130, -12], [142, -11], [153, -28], [148, -38],
+    [135, -35], [120, -35], [114, -28], [114, -22]
+  ], '#3a2d22', 'rgba(56, 189, 248, 0.5)', 1.5);
+  drawLand([
+    [-9, 36], [0, 42], [10, 55], [30, 70], [60, 73], [100, 75], [140, 70], [170, 65],
+    [160, 50], [140, 40], [122, 30], [105, 22], [75, 35], [50, 40], [30, 45], [-9, 36]
+  ], '#1f2937', 'rgba(56, 189, 248, 0.35)', 1.2);
+  drawLand([[44, -13], [50, -15], [47, -25], [43, -25], [44, -13]], '#1e382b', '#38bdf8', 1.5);
+
+  // India
+  const indiaGrad = ctx.createLinearGradient(toX(75), toY(34), toX(77), toY(8));
+  indiaGrad.addColorStop(0, '#3f5647');
+  indiaGrad.addColorStop(0.3, '#214e32');
+  indiaGrad.addColorStop(0.7, '#183d28');
+  indiaGrad.addColorStop(1, '#1b4a30');
+  drawLand(indiaCoords, indiaGrad, '#67e8f9', 2.8);
+  drawLand(sriLankaCoords, '#1b4a30', '#67e8f9', 2.0);
+
+  // Labels
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = 'bold 24px system-ui, -apple-system, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+  ctx.shadowBlur = 8;
+  ctx.fillText('INDIA', toX(78), toY(22));
+
+  ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
+  ctx.fillStyle = '#38bdf8';
+  ctx.shadowColor = 'rgba(2, 132, 199, 0.9)';
+  ctx.shadowBlur = 10;
+  ctx.fillText('ARABIAN SEA', toX(66), toY(16));
+  ctx.fillText('BAY OF BENGAL', toX(89), toY(15));
+
+  ctx.font = 'bold 22px system-ui, -apple-system, sans-serif';
+  ctx.fillStyle = '#7dd3fc';
+  ctx.shadowColor = 'rgba(3, 105, 161, 0.9)';
+  ctx.shadowBlur = 12;
+  ctx.fillText('INDIAN OCEAN', toX(77), toY(-6));
+  ctx.restore();
+
+  // Subtle lat/lon
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
+  ctx.lineWidth = 1;
+  for (let lat = -60; lat <= 60; lat += 30) {
+    const y = toY(lat);
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
   }
-`;
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.32)';
+  ctx.lineWidth = 1.5;
+  const eqY = toY(0);
+  ctx.beginPath();
+  ctx.moveTo(0, eqY);
+  ctx.lineTo(canvas.width, eqY);
+  ctx.stroke();
 
-const terminatorFragmentShader = `
-  uniform vec3 uSunDirection;   // normalised direction from Earth centre toward the Sun
-  uniform float uTerminatorSoftness; // angular softness in radians (~0.05)
-
-  varying vec3 vNormal;
-  varying vec3 vWorldPosition;
-
-  void main() {
-    // Dot product between outward normal and sun direction gives cos(angle from sub-solar point)
-    // > 0  => dayside, < 0 => nightside
-    vec3 norm = normalize(vNormal);
-    float cosAngle = dot(norm, normalize(uSunDirection));
-
-    // Smooth terminator band
-    float shadowFactor = 1.0 - smoothstep(-uTerminatorSoftness, uTerminatorSoftness, cosAngle);
-
-    // Night side: deep navy-black shadow; day side: transparent (0 opacity)
-    // Blend: fully transparent on day side, semi-opaque dark on night side
-    float alpha = shadowFactor * 0.72;
-    vec3 nightColor = vec3(0.01, 0.02, 0.06);
-
-    gl_FragColor = vec4(nightColor, alpha);
-  }
-`;
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
 
 export default function OceanGlobe({ 
   primaryVariable = 'thetao', 
   opacity = 0.85,
-  isAutoRotate = false,
-  currentTimeHour = 12   // <-- new prop: 0-23 UTC hour
+  isAutoRotate = false
 }) {
   const globeGroupRef = useRef();
-  const terminatorMeshRef = useRef();
+  const [earthTexture, setEarthTexture] = useState(() => createProceduralEarthTexture());
 
-  // Photorealistic NASA Blue Marble Satellite Earth Texture
-  const earthSatelliteTexture = useMemo(() => {
+  useEffect(() => {
     const loader = new THREE.TextureLoader();
-    const tex = loader.load('/earth_day.jpg');
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.ClampToEdgeWrapping;
-    return tex;
-  }, []);
-
-  // Build the custom shader material once and update uniform each frame
-  const terminatorMaterial = useMemo(() => {
-    return new THREE.ShaderMaterial({
-      vertexShader: terminatorVertexShader,
-      fragmentShader: terminatorFragmentShader,
-      uniforms: {
-        uSunDirection: { value: new THREE.Vector3(1, 0, 0) },
-        uTerminatorSoftness: { value: 0.06 }
+    loader.load(
+      '/earth_day.jpg',
+      (loadedTex) => {
+        loadedTex.wrapS = THREE.RepeatWrapping;
+        loadedTex.wrapT = THREE.ClampToEdgeWrapping;
+        loadedTex.colorSpace = THREE.SRGBColorSpace;
+        loadedTex.needsUpdate = true;
+        setEarthTexture(loadedTex);
       },
-      transparent: true,
-      depthWrite: false,
-      side: THREE.FrontSide,
-      blending: THREE.NormalBlending
-    });
+      undefined,
+      (err) => {
+        console.warn('Satellite texture load error, keeping procedural base:', err);
+      }
+    );
   }, []);
 
-  // Compute sun direction from UTC hour
-  // THREE.js SphereGeometry UV mapping: longitude 0° = +Z face
-  // Camera is at z=-5.5, so the camera-facing face has normals pointing in -Z direction
-  // We want the visible Indian Ocean face (center of the app) to be lit during daytime.
-  // Since the UI uses IST (UTC+5.5), we add +5.5h to treat slider values as IST:
-  //   • 6 AM IST → ~11.5h effective UTC → sub-solar lon ≈ 7.5°E → visible face bright ✓
-  //   • 12 PM IST → ~17.5h effective UTC → sub-solar lon ≈ -82.5°W → afternoon light ✓  
-  //   • Midnight IST → ~5.5h effective UTC → sub-solar lon ≈ 97.5°E → dark ✓
-  //
-  // Sub-solar longitude formula (standard Earth rotation):
-  //   lon_sun = (12 - hour_UTC) * 15°  (positive = East)
-  // In our coordinate system: lon=0° → +Z, lon=90°E → +X
-  //   sunX = sin(lon_rad), sunZ = cos(lon_rad)
-  const computeSunDirection = (hour) => {
-    // Apply IST offset so time slider (IST) maps to correct solar position
-    const effectiveUTC = (hour + 5.5) % 24;
-    // Sub-solar longitude in radians (positive = East)
-    const lonRad = (12 - effectiveUTC) * (Math.PI / 12); // 15° per hour
-    return new THREE.Vector3(
-      Math.sin(lonRad),    // East component
-      0.12,                // slight axial tilt for realism
-      Math.cos(lonRad)     // Forward (+Z) component — camera faces -Z so +Z normals face away
-    ).normalize();
-  };
-
-  // Idle gentle rotation if user toggled Auto-Rotate + update terminator uniform each frame
-  useFrame((_, delta) => {
-    if (globeGroupRef.current && isAutoRotate) {
-      globeGroupRef.current.rotation.y += delta * 0.08;
-    }
-
-    // Update sun direction uniform — use world-space direction directly
-    // (The shader works in world space via vWorldPosition + vNormal)
-    if (terminatorMeshRef.current) {
-      const sunDir = computeSunDirection(currentTimeHour);
-      terminatorMaterial.uniforms.uSunDirection.value.copy(sunDir);
+  useFrame(() => {
+    if (globeGroupRef.current) {
+      globeGroupRef.current.rotation.set(0, 0, 0);
     }
   });
 
   return (
     <group ref={globeGroupRef}>
-      {/* 1. Base Photorealistic Satellite Earth Sphere */}
-      <mesh receiveShadow castShadow>
+      {/* 1. Base Photorealistic Satellite Earth Sphere (Clean uniform lighting, zero rotating light glare) */}
+      <mesh>
         <sphereGeometry args={[2.5, 64, 64]} />
-        <meshStandardMaterial
-          map={earthSatelliteTexture}
-          roughness={0.4}
-          metalness={0.15}
-        />
-      </mesh>
-
-      {/* 2. Solar Terminator Day/Night Overlay — sits just above the globe surface */}
-      <mesh ref={terminatorMeshRef} scale={[1.001, 1.001, 1.001]}>
-        <sphereGeometry args={[2.5, 64, 64]} />
-        <primitive object={terminatorMaterial} attach="material" />
-      </mesh>
-
-      {/* 3. Soft Atmospheric Cyan Rim Glow */}
-      <mesh scale={[1.022, 1.022, 1.022]}>
-        <sphereGeometry args={[2.5, 32, 32]} />
         <meshBasicMaterial
-          color="#38bdf8"
-          transparent
-          opacity={0.14}
-          side={THREE.BackSide}
-          blending={THREE.AdditiveBlending}
-        />
-      </mesh>
-
-      {/* 4. Outer Space-Facing Atmospheric Halo */}
-      <mesh scale={[1.048, 1.048, 1.048]}>
-        <sphereGeometry args={[2.5, 32, 32]} />
-        <meshBasicMaterial
-          color="#0284c7"
-          transparent
-          opacity={0.08}
-          side={THREE.BackSide}
-          blending={THREE.AdditiveBlending}
+          map={earthTexture}
         />
       </mesh>
     </group>

@@ -50,12 +50,15 @@ function getTangentVectors(lat, lon) {
 function getScalarColor(val, variable = 'sst', colorScale = 'turbo') {
   let t = 0.5;
 
-  if (variable === 'sst') {
+  if (variable === 'sst' || variable === 'thetao') {
     // SST range 25.0°C to 31.5°C in tropical Indian Ocean
     t = Math.max(0, Math.min(1, (val - 25.0) / 6.5));
-  } else if (variable === 'salinity') {
+  } else if (variable === 'salinity' || variable === 'so') {
     // Salinity range 32.0 to 36.8 PSU
     t = Math.max(0, Math.min(1, (val - 32.0) / 4.8));
+  } else if (variable === 'density') {
+    // Seawater density 1021.0 to 1027.0 kg/m³
+    t = Math.max(0, Math.min(1, (val - 1021.0) / 6.0));
   } else {
     // Current speed 0.05 to 0.75 m/s
     t = Math.max(0, Math.min(1, (val - 0.05) / 0.70));
@@ -150,8 +153,13 @@ export default function Copernicus3DLayer({
       const vec = latLonToVector3(lat, lon, 2.536);
 
       let scalarVal = pt.temperature;
-      if (primaryVariable === 'salinity') scalarVal = pt.salinity;
-      if (primaryVariable === 'currents') scalarVal = pt.current_speed;
+      if (primaryVariable === 'salinity' || primaryVariable === 'so') {
+        scalarVal = pt.salinity;
+      } else if (primaryVariable === 'currents' || primaryVariable === 'current_speed' || primaryVariable === 'uo') {
+        scalarVal = pt.current_speed;
+      } else if (primaryVariable === 'density') {
+        scalarVal = pt.density ?? (1000 + 0.805 * (pt.salinity || 35.0) - 0.0065 * Math.pow((pt.temperature || 28.0) - 4, 2));
+      }
 
       const col = getScalarColor(scalarVal, primaryVariable, colorScale);
 

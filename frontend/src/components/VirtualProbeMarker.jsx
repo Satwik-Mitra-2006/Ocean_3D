@@ -83,7 +83,7 @@ export default function VirtualProbeMarker({ probe, onClear }) {
             <span className="w-1.5 h-1.5 rounded-full bg-white" />
             VIRTUAL PROBE
           </span>
-          <span className="text-[9px] font-mono text-sky-200 bg-slate-950/90 px-1.5 py-0.2 rounded border border-slate-700 shadow">
+          <span className="text-[9px] font-mono text-sky-200 bg-[#03152c]/85 px-1.5 py-0.2 rounded border border-cyan-400/30 shadow">
             {Math.abs(lat).toFixed(2)}°{lat >= 0 ? 'N' : 'S'}, {Math.abs(lon).toFixed(2)}°{lon >= 0 ? 'E' : 'W'}
           </span>
         </div>

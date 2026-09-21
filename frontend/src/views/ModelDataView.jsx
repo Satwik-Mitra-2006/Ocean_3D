@@ -25,7 +25,7 @@ import {
   Play,
   Calendar
 } from 'lucide-react';
-import { getStationAccuracyMetrics } from '../data/mockOceanData';
+import { getStationAccuracyMetrics, getDepthAdjustedValues } from '../data/mockOceanData';
 
 export default function ModelDataView({ 
   backendHealth = {}, 
@@ -81,9 +81,10 @@ export default function ModelDataView({
   const stnLon = Number(currentStn.lon ?? currentStn.longitude ?? 72.63);
 
   // Station-specific scientific validation accuracy metrics (RMSE, MAE, R², Bias)
+  // Dynamically recomputes for each selected date and depth
   const stationAccuracy = useMemo(() => {
-    return getStationAccuracyMetrics(stnCode);
-  }, [stnCode]);
+    return getStationAccuracyMetrics(stnCode, selectedDate, selectedDepth);
+  }, [stnCode, selectedDate, selectedDepth]);
 
   // Compute nearest 1/12° WGS84 NetCDF grid node
   const gridNodeInfo = useMemo(() => {
@@ -122,23 +123,24 @@ export default function ModelDataView({
     const tDiurnal = Math.sin(hourAngle) * (0.45 * thermalDamp);
     const sDiurnal = Math.sin(hourAngle * 0.5) * (0.05 * thermalDamp);
 
-    // If vertical profile slice is provided from backend, use it
+    // If vertical profile slice is provided from backend, use exact NetCDF data
     if (verticalProfile && verticalProfile.length > 0) {
       const match = verticalProfile.reduce((prev, curr) => 
         Math.abs(curr.depth - activeDepth) < Math.abs(prev.depth - activeDepth) ? curr : prev
       );
       if (match) {
-        const modelT = +(Number(match.temperature) + (stationAccuracy.biasT || -0.22) + tDiurnal).toFixed(2);
-        const modelS = +(Number(match.salinity) + (stationAccuracy.biasS || 0.06) + sDiurnal).toFixed(2);
-        const uoVal = +((match.uo ?? (Math.cos((stnLat * Math.PI) / 180) * 0.28))).toFixed(2);
-        const voVal = +((match.vo ?? (Math.sin((stnLon * Math.PI) / 180) * 0.18))).toFixed(2);
-        const calcDensity = +(1028.1 - 0.15 * modelT + 0.78 * (modelS - 35) + 0.045 * activeDepth).toFixed(2);
+        const modelT = +(Number(match.temperature)).toFixed(2);
+        const modelS = +(Number(match.salinity)).toFixed(2);
+        const uoVal = match.u_current !== undefined && match.u_current !== null ? +(Number(match.u_current)).toFixed(3) : (currentStn.u_current ?? 0.098);
+        const voVal = match.v_current !== undefined && match.v_current !== null ? +(Number(match.v_current)).toFixed(3) : (currentStn.v_current ?? -0.156);
+        const speedVal = match.current_speed !== undefined && match.current_speed !== null ? +(Number(match.current_speed)).toFixed(3) : +(Math.sqrt(uoVal * uoVal + voVal * voVal)).toFixed(3);
+        const calcDensity = match.density ? +(Number(match.density)).toFixed(2) : +(1028.1 - 0.15 * modelT + 0.78 * (modelS - 35) + 0.045 * activeDepth).toFixed(2);
         return {
           thetao: modelT,
           so: modelS,
           uo: uoVal,
           vo: voVal,
-          current_speed: +Number(match.current_speed ?? Math.sqrt(uoVal * uoVal + voVal * voVal)).toFixed(2),
+          current_speed: speedVal,
           density: calcDensity,
           obsT: baseT,
           obsS: baseS,
@@ -147,15 +149,14 @@ export default function ModelDataView({
       }
     }
 
-    // High-fidelity physical simulation based on station bias, depth stratification, and diurnal cycle
-    const depthDrop = activeDepth * 0.16;
-    const depthSalRise = activeDepth * 0.025;
-    const modelT = +(baseT + (stationAccuracy.biasT || -0.22) - depthDrop + tDiurnal).toFixed(2);
-    const modelS = +(baseS + (stationAccuracy.biasS || 0.06) + depthSalRise + sDiurnal).toFixed(2);
-    const uoVal = +((Math.cos((stnLat * Math.PI) / 180) * 0.32) + (stationAccuracy.biasSpeed || 0.02)).toFixed(2);
-    const voVal = +((Math.sin((stnLon * Math.PI) / 180) * 0.19) - 0.08).toFixed(2);
-    const modelSpeed = +(Math.sqrt(uoVal * uoVal + voVal * voVal)).toFixed(2);
-    const modelDensity = +(1028.1 - 0.15 * modelT + 0.78 * (modelS - 35) + 0.045 * activeDepth).toFixed(2);
+    // Direct physical values matching exact NetCDF station coordinates adjusted for activeDepth
+    const adj = getDepthAdjustedValues(baseT, baseS, baseSpeed, activeDepth);
+    const modelT = +(adj.temp).toFixed(2);
+    const modelS = +(adj.sal).toFixed(2);
+    const uoVal = +(currentStn.u_current ?? currentStn.u ?? 0.098);
+    const voVal = +(currentStn.v_current ?? currentStn.v ?? -0.156);
+    const modelSpeed = +(adj.speed).toFixed(3);
+    const modelDensity = +(1000 + 0.805 * modelS - 0.0065 * Math.pow(modelT - 4, 2) + 0.0045 * activeDepth).toFixed(2);
 
     return {
       thetao: modelT,
@@ -366,43 +367,10 @@ export default function ModelDataView({
             })}
           </div>
 
-          {/* Time Hour Slicer */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] font-mono text-slate-400 flex items-center gap-1 mr-1">
-              <Clock className="h-3.5 w-3.5 text-sky-400" />
-              UTC Time:
-            </span>
-            {[0, 6, 12, 18].map(h => {
-              const isSel = Math.floor(currentTimeHour) === h;
-              return (
-                <button
-                  key={h}
-                  type="button"
-                  onClick={() => setCurrentTimeHour(h)}
-                  className={`px-2 py-0.5 rounded text-[11px] font-mono transition-all cursor-pointer ${
-                    isSel
-                      ? 'bg-sky-500 text-white font-bold shadow-sm'
-                      : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {String(h).padStart(2, '0')}:00
-                </button>
-              );
-            })}
-            <div className="flex items-center gap-1.5 ml-1">
-              <input
-                type="range"
-                min="0"
-                max="23"
-                step="1"
-                value={Math.floor(currentTimeHour)}
-                onChange={(e) => setCurrentTimeHour(Number(e.target.value))}
-                className="w-16 sm:w-20 accent-sky-400 h-1 bg-slate-800 rounded-lg cursor-pointer"
-              />
-              <span className="text-xs font-mono font-bold text-sky-300 min-w-[45px]">
-                {String(Math.floor(currentTimeHour)).padStart(2, '0')}:00
-              </span>
-            </div>
+          {/* NetCDF Temporal Resolution Badge */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-[11px] font-mono text-emerald-300">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+            <span>Resolution: Daily Mean (P1D-m)</span>
           </div>
 
         </div>

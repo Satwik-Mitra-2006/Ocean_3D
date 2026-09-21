@@ -135,8 +135,8 @@ export default function ObservationMarker({
               isSelected
                 ? 'bg-slate-950/95 text-white ring-2 ring-sky-400 font-bold border border-sky-300 scale-110 shadow-sky-500/40'
                 : hovered
-                  ? 'bg-slate-900/90 text-sky-200 border border-sky-400 scale-105'
-                  : 'bg-slate-950/85 text-slate-200 border border-slate-700/80 hover:border-sky-400'
+                  ? 'bg-[#03152c]/90 text-sky-200 border border-sky-400 scale-105'
+                  : 'bg-[#03152c]/85 text-slate-200 border border-cyan-400/25 hover:border-sky-400'
             }`}
           >
             {/* Buoy/Argo Icon Pin */}

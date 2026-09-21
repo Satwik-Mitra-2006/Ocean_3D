@@ -10,15 +10,20 @@
     box-sizing: border-box;
   }
 
-  html, body {
+  html {
+    min-height: 100%;
+  }
+
+  body {
     margin: 0;
     padding: 0;
     width: 100%;
-    min-height: 100%;
+    min-height: 100vh;
     font-family: var(--font-sans);
-    background-color: #070d19;
     color: #f1f5f9;
     overflow-x: hidden;
+    position: relative;
+    background-color: #020814;
   }
 
   #root {
@@ -29,7 +34,9 @@
     max-width: 100%;
     border: none;
     margin: 0;
-    background-color: #070d19;
+    background: transparent;
+    position: relative;
+    z-index: 1;
   }
 }
 
@@ -39,14 +46,14 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0b1325;
+  background: rgba(3, 21, 44, 0.4);
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: rgba(56, 189, 248, 0.25);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: rgba(56, 189, 248, 0.5);
 }
 
 /* Pulse animation for active observation buoys */
@@ -83,3 +90,67 @@
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+.font-cursive {
+  font-family: 'Dancing Script', cursive;
+}
+
+/* Ambient Swimming Fish Animation Keyframes */
+@keyframes swimAcrossLeftToRight {
+  0% {
+    transform: translateX(-160px) translateY(0px);
+    opacity: 0;
+  }
+  5% {
+    opacity: 0.85;
+  }
+  50% {
+    transform: translateX(calc(50vw)) translateY(-18px);
+    opacity: 0.9;
+  }
+  95% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateX(calc(100vw + 160px)) translateY(6px);
+    opacity: 0;
+  }
+}
+
+@keyframes swimAcrossRightToLeft {
+  0% {
+    transform: translateX(calc(100vw + 160px)) scaleX(-1) translateY(0px);
+    opacity: 0;
+  }
+  5% {
+    opacity: 0.75;
+  }
+  50% {
+    transform: translateX(calc(50vw)) scaleX(-1) translateY(16px);
+    opacity: 0.85;
+  }
+  95% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translateX(-160px) scaleX(-1) translateY(-10px);
+    opacity: 0;
+  }
+}
+
+@keyframes tailFinOscillation {
+  0%, 100% {
+    transform-origin: 30% 50%;
+    transform: rotate(0deg) skewY(0deg);
+  }
+  25% {
+    transform-origin: 30% 50%;
+    transform: rotate(15deg) skewY(10deg);
+  }
+  75% {
+    transform-origin: 30% 50%;
+    transform: rotate(-15deg) skewY(-10deg);
+  }
+}
+
+

@@ -73,6 +73,8 @@ class StationResponse(BaseModel):
     temperature: float = Field(..., description="Water temperature in °C")
     salinity: float = Field(..., description="Salinity in PSU")
     current_speed: float = Field(..., description="Current speed in m/s")
+    u_current: Optional[float] = Field(None, description="Zonal current velocity (eastward) in m/s (uo)")
+    v_current: Optional[float] = Field(None, description="Meridional current velocity (northward) in m/s (vo)")
     current_direction: Optional[float] = Field(145.0, description="Current flow direction in degrees")
     current_dir_compass: Optional[str] = Field("145° SE", description="Compass direction string")
     wave_height: Optional[float] = Field(2.0, description="Significant wave height in meters")
@@ -125,6 +127,8 @@ class VerticalProfilePoint(BaseModel):
     salinity: float = Field(..., description="Salinity in PSU")
     current_speed: float = Field(..., description="Current speed in m/s")
     density: float = Field(..., description="Calculated seawater density in kg/m3")
+    u_current: Optional[float] = Field(None, description="Zonal current velocity in m/s (uo)")
+    v_current: Optional[float] = Field(None, description="Meridional current velocity in m/s (vo)")
 
 
 class VerticalProfileResponse(BaseModel):

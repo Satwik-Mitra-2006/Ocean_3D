@@ -76,9 +76,10 @@ export function valueToColor(value, min, max, mode = 'temperature') {
   const clamped = Math.max(0, Math.min(1, t));
 
   const scales = {
-    temperature: ['#030712', '#1e3a8a', '#0284c7', '#06b6d4', '#22c55e', '#eab308', '#f97316', '#ef4444'],
-    salinity: ['#0f172a', '#1e1b4b', '#3730a3', '#0284c7', '#06b6d4', '#2dd4bf', '#a3e635', '#fde047'],
-    currents: ['#030712', '#1e3a8a', '#0284c7', '#38bdf8', '#67e8f9', '#a5f3fc', '#ffffff'],
+    temperature: ['#1e3a8a', '#0284c7', '#06b6d4', '#22c55e', '#eab308', '#f97316', '#ef4444'],
+    salinity: ['#0f172a', '#1e3a8a', '#0284c7', '#0d9488', '#2dd4bf', '#a3e635', '#fde047'],
+    currents: ['#020617', '#1e3a8a', '#0284c7', '#00f0ff', '#67e8f9', '#e0f2fe', '#ffffff'],
+    density: ['#fdf2f8', '#fbcfe8', '#f472b6', '#ec4899', '#db2777', '#be185d', '#701a75'], // Pink / Magenta gradient for density
     difference: ['#06b6d4', '#38bdf8', '#e2e8f0', '#fca5a5', '#ef4444'] // Diverging: negative bias to positive bias
   };
 
@@ -90,51 +91,33 @@ export function valueToColor(value, min, max, mode = 'temperature') {
   return lerpColor(colors[lo], colors[hi], frac);
 }
 
-// Generate vertical cutaway gradient texture using REAL Copernicus NetCDF layer values
+// Generate vertical cutaway gradient texture matching the UI color scale bar exactly
 function createDataDrivenTexture(profile = [], mode = 'temperature', dataRange = { min: 28.0, max: 30.0 }) {
   const canvas = document.createElement('canvas');
   canvas.width = 128;
   canvas.height = 512;
   const ctx = canvas.getContext('2d');
 
-  ctx.fillStyle = '#020b18';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
   const { min, max } = dataRange;
 
-  // Render real depth layers gradient
-  const steps = 64;
+  // Render 128 depth slices matching the scale bar from surface (top) to floor (bottom)
+  const steps = 128;
   for (let i = 0; i < steps; i++) {
-    const ratio = i / (steps - 1);
-    const depthMeters = 0.49 + ratio * (11.40 - 0.49);
+    const ratio = i / (steps - 1); // 0 at surface (0.49m), 1 at floor (11.40m)
 
-    // Interpolate value from real profile
-    let val = null;
-    if (profile && profile.length > 0) {
-      // Find nearest depth point in profile
-      const nearest = profile.reduce((prev, curr) => 
-        Math.abs(curr.depth - depthMeters) < Math.abs(prev.depth - depthMeters) ? curr : prev
-      );
-      if (nearest) {
-        val = mode === 'salinity' 
-          ? nearest.salinity 
-          : mode === 'currents' 
-          ? (nearest.current_speed ?? 0.22) 
-          : nearest.temperature;
-      }
-    }
+    // Density increases with depth (min at surface, max at floor)
+    // Salinity, Temperature, Currents decrease with depth (max at surface, min at floor)
+    const depthVal = mode === 'density'
+      ? min + ratio * (max - min)
+      : max - ratio * (max - min);
 
-    if (val === null) {
-      val = min + (1 - ratio) * (max - min);
-    }
-
-    ctx.fillStyle = valueToColor(val, min, max, mode);
+    ctx.fillStyle = valueToColor(depthVal, min, max, mode);
     ctx.fillRect(0, ratio * canvas.height, canvas.width, canvas.height / steps + 1);
   }
 
   // Draw calibrated layer boundary lines for the 9 Copernicus depth levels
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.20)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.40)';
+  ctx.lineWidth = 1.5;
   COPERNICUS_REAL_DEPTHS.forEach(d => {
     const norm = (d - 0.49) / (11.40 - 0.49);
     const y = norm * canvas.height;
@@ -162,9 +145,9 @@ function createSurfaceWaterTexture() {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Surface Current Circulation Gyres & Caustic Highlights
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.40)';
-  ctx.lineWidth = 2.0;
+  // Subtle surface ocean water circulation swirls
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+  ctx.lineWidth = 1.5;
   const drawSwirl = (cx, cy, r, startAngle, endAngle) => {
     ctx.beginPath();
     ctx.arc(cx, cy, r, startAngle, endAngle);
@@ -174,14 +157,6 @@ function createSurfaceWaterTexture() {
   drawSwirl(340, 150, 70, Math.PI * 0.5, Math.PI * 2.1);
   drawSwirl(300, 360, 55, Math.PI * 0.2, Math.PI * 1.8);
 
-  // Shelf turquoise specular glow
-  const shelfGrad = ctx.createLinearGradient(0, 0, 160, 0);
-  shelfGrad.addColorStop(0, 'rgba(56, 189, 248, 0.6)');
-  shelfGrad.addColorStop(0.6, 'rgba(45, 212, 191, 0.25)');
-  shelfGrad.addColorStop(1, 'rgba(2, 132, 199, 0)');
-  ctx.fillStyle = shelfGrad;
-  ctx.fillRect(0, 0, 180, canvas.height);
-
   return new THREE.CanvasTexture(canvas);
 }
 
@@ -189,6 +164,7 @@ export default function OceanCrossSection({
   mode = 'temperature',
   selectedDepth = 0.49,
   onSelectDepth,
+  colorRange = null,
   realProfile = [],
   realPointData = null,
   selectedStation = null,
@@ -211,29 +187,34 @@ export default function OceanCrossSection({
     return match || realProfile[0] || realPointData;
   }, [realProfile, activeDepth, realPointData]);
 
-  // Compute dynamic min and max range strictly from real Copernicus NetCDF data
+  // Compute dynamic min and max range strictly synchronized with the UI color scale bar
   const dataRange = useMemo(() => {
+    if (colorRange && colorRange.min !== undefined && colorRange.max !== undefined) {
+      return { min: colorRange.min, max: colorRange.max };
+    }
     if (!realProfile || realProfile.length === 0) {
-      if (mode === 'salinity') return { min: 34.8, max: 35.5 };
-      if (mode === 'currents') return { min: 0.05, max: 0.85 };
-      return { min: 28.0, max: 30.5 };
+      if (mode === 'salinity') return { min: 34.2, max: 35.8 };
+      if (mode === 'currents') return { min: 0.05, max: 0.45 };
+      if (mode === 'density') return { min: 1023.2, max: 1024.1 };
+      return { min: 28.5, max: 31.5 };
     }
 
-    const key = mode === 'salinity' ? 'salinity' : mode === 'currents' ? 'current_speed' : 'temperature';
+    const key = mode === 'salinity' ? 'salinity' : mode === 'currents' ? 'current_speed' : mode === 'density' ? 'density' : 'temperature';
     const vals = realProfile.map(p => p[key]).filter(v => v !== null && !isNaN(v));
 
     if (vals.length === 0) {
-      return { min: 28.0, max: 30.0 };
+      if (mode === 'density') return { min: 1023.2, max: 1024.1 };
+      return { min: 28.5, max: 31.5 };
     }
 
     const min = Math.min(...vals);
     const max = Math.max(...vals);
-    const pad = (max - min) * 0.1 || (mode === 'salinity' ? 0.1 : 0.2);
+    const pad = (max - min) * 0.1 || (mode === 'salinity' ? 0.08 : mode === 'density' ? 0.04 : 0.15);
     return {
       min: +(min - pad).toFixed(2),
       max: +(max + pad).toFixed(2)
     };
-  }, [realProfile, mode]);
+  }, [colorRange, realProfile, mode]);
 
   // Textures generated from real Copernicus data
   const frontTexture = useMemo(() => {
@@ -319,7 +300,19 @@ export default function OceanCrossSection({
   }, [activeDepth, realProfile, mode]);
 
   const sliceY = depthToY(activeDepth);
-  const slicerColor = mode === 'salinity' ? '#06b6d4' : mode === 'currents' ? '#38bdf8' : '#f59e0b';
+  const normActiveDepth = Math.max(0, Math.min(1, (activeDepth - 0.49) / (11.40 - 0.49)));
+
+  // Slicer value mapped directly along the UI scale bar from surface to floor:
+  // - Density: min at surface (norm=0) to max at floor (norm=1)
+  // - Salinity/Temp/Currents: max at surface (norm=0) to min at floor (norm=1)
+  const slicerVal = mode === 'density'
+    ? dataRange.min + normActiveDepth * (dataRange.max - dataRange.min)
+    : dataRange.max - normActiveDepth * (dataRange.max - dataRange.min);
+
+  // Dynamically compute slicerColor directly from the color scale bar!
+  const slicerColor = useMemo(() => {
+    return valueToColor(slicerVal, dataRange.min, dataRange.max, mode);
+  }, [slicerVal, dataRange, mode]);
 
   return (
     <group position={[0, 0.45, 0]}>
@@ -332,30 +325,67 @@ export default function OceanCrossSection({
           roughness={0.12}
           metalness={0.30}
           transparent
-          opacity={0.92}
+          opacity={0.88}
           envMapIntensity={1.5}
         />
       </mesh>
 
-      {/* 2. ACRYLIC GLASS VOLUMETRIC FRAME WITH COPERNICUS BLUE ACCENTS */}
+      {/* 2. TRANSLUCENT WATER COLUMN VOLUME MESH TINTED TO THE ACTIVE VARIABLE COLOR */}
       <group position={[0, (SURFACE_Y + FLOOR_Y) / 2, 0]}>
         <lineSegments>
           <edgesGeometry args={[new THREE.BoxGeometry(BOX_W, BOX_H, BOX_D)]} />
-          <lineBasicMaterial color="#38bdf8" linewidth={1.5} transparent opacity={0.65} />
+          <lineBasicMaterial color={slicerColor} linewidth={2} transparent opacity={0.70} />
         </lineSegments>
         <mesh>
           <boxGeometry args={[BOX_W, BOX_H, BOX_D]} />
-          <meshPhysicalMaterial
-            color="#0369a1"
+          <meshStandardMaterial
+            color={slicerColor}
             transparent
-            opacity={0.06}
-            roughness={0.1}
-            metalness={0.1}
-            transmission={0.6}
-            ior={1.33}
+            opacity={0.10}
+            roughness={0.08}
+            metalness={0.12}
             depthWrite={false}
           />
         </mesh>
+      </group>
+
+      {/* 2.5 3D VOLUMETRIC STRATIFIED HORIZONTAL LAYERS (9 COPERNICUS REAL DEPTHS) */}
+      <group>
+        {COPERNICUS_REAL_DEPTHS.map((depth, idx) => {
+          const y = depthToY(depth);
+          const normDepth = Math.max(0, Math.min(1, (depth - 0.49) / (11.40 - 0.49)));
+          const depthVal = mode === 'density'
+            ? dataRange.min + normDepth * (dataRange.max - dataRange.min)
+            : dataRange.max - normDepth * (dataRange.max - dataRange.min);
+
+          const layerColor = valueToColor(depthVal, dataRange.min, dataRange.max, mode);
+          const isCurrentDepth = Math.abs(depth - activeDepth) < 0.12;
+
+          return (
+            <group key={`strata-${idx}`} position={[0, y, 0]}>
+              {/* Vibrant horizontal depth slice disc */}
+              <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                <planeGeometry args={[BOX_W - 0.08, BOX_D - 0.08]} />
+                <meshBasicMaterial
+                  color={layerColor}
+                  transparent
+                  opacity={isCurrentDepth ? 0.70 : 0.35}
+                  depthWrite={false}
+                  side={THREE.DoubleSide}
+                />
+              </mesh>
+              {/* Boundary perimeter wire */}
+              <lineSegments>
+                <edgesGeometry args={[new THREE.BoxGeometry(BOX_W - 0.06, 0.008, BOX_D - 0.06)]} />
+                <lineBasicMaterial
+                  color={layerColor}
+                  transparent
+                  opacity={isCurrentDepth ? 1.0 : 0.65}
+                />
+              </lineSegments>
+            </group>
+          );
+        })}
       </group>
 
       {/* 3. INTERACTIVE 3D DEPTH SLICER PLANE CUTTING THROUGH WATER COLUMN */}
@@ -366,9 +396,9 @@ export default function OceanCrossSection({
           <meshStandardMaterial
             color={slicerColor}
             transparent
-            opacity={0.32}
-            roughness={0.2}
-            metalness={0.2}
+            opacity={0.75}
+            roughness={0.15}
+            metalness={0.3}
             side={THREE.DoubleSide}
             depthWrite={false}
           />
@@ -377,7 +407,7 @@ export default function OceanCrossSection({
         {/* Neon Perimeter Glowing Frame */}
         <lineSegments>
           <edgesGeometry args={[new THREE.BoxGeometry(BOX_W - 0.02, 0.015, BOX_D - 0.02)]} />
-          <lineBasicMaterial color={slicerColor} linewidth={2} transparent opacity={0.95} />
+          <lineBasicMaterial color={slicerColor} linewidth={3.5} transparent opacity={1.0} />
         </lineSegments>
 
         {/* 3D Slicer Handle with Live Telemetry Badge */}
@@ -388,7 +418,7 @@ export default function OceanCrossSection({
           </mesh>
           <Html position={[0.18, 0, 0]} style={{ pointerEvents: 'none' }}>
             <div className="flex items-center gap-1.5 bg-slate-950/95 px-2.5 py-1 rounded-lg border border-slate-700 shadow-2xl whitespace-nowrap font-mono text-[10px] text-white backdrop-blur-md">
-              <span className="w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: slicerColor }} />
+              <span className="w-2.5 h-2.5 rounded-full animate-ping" style={{ backgroundColor: slicerColor }} />
               <span>Real Depth: <strong style={{ color: slicerColor }}>{activeDepth.toFixed(2)}m</strong></span>
               {currentDepthData?.temperature && (
                 <span className="text-slate-400">| {currentDepthData.temperature}°C</span>
@@ -396,31 +426,34 @@ export default function OceanCrossSection({
               {currentDepthData?.salinity && (
                 <span className="text-teal-300">| {currentDepthData.salinity} PSU</span>
               )}
+              {currentDepthData?.density && (
+                <span className="text-pink-300">| {Number(currentDepthData.density).toFixed(2)} kg/m³</span>
+              )}
             </div>
           </Html>
         </group>
       </group>
 
-      {/* 4. VERTICAL CUTAWAY FRONT FACE (CLICKABLE TO PROBE) */}
+      {/* 4. VERTICAL CUTAWAY FRONT FACE (RICH GRADIENT MATCHING COLOR SCALE) */}
       <mesh position={[0, (SURFACE_Y + FLOOR_Y) / 2, BOX_D / 2]} onClick={handleColumnClick}>
         <planeGeometry args={[BOX_W, BOX_H]} />
-        <meshBasicMaterial map={frontTexture} side={THREE.DoubleSide} />
+        <meshBasicMaterial map={frontTexture} side={THREE.DoubleSide} transparent opacity={0.82} depthWrite={false} />
       </mesh>
 
-      {/* 5. VERTICAL CUTAWAY RIGHT SIDE FACE (CLICKABLE TO PROBE) */}
+      {/* 5. VERTICAL CUTAWAY RIGHT SIDE FACE (RICH GRADIENT MATCHING COLOR SCALE) */}
       <mesh position={[BOX_W / 2, (SURFACE_Y + FLOOR_Y) / 2, 0]} rotation={[0, -Math.PI / 2, 0]} onClick={handleColumnClick}>
         <planeGeometry args={[BOX_D, BOX_H]} />
-        <meshBasicMaterial map={frontTexture} side={THREE.DoubleSide} />
+        <meshBasicMaterial map={frontTexture} side={THREE.DoubleSide} transparent opacity={0.82} depthWrite={false} />
       </mesh>
 
       {/* 6. SEMI-TRANSLUCENT REAR & LEFT DEPTH WALLS */}
       <mesh position={[0, (SURFACE_Y + FLOOR_Y) / 2, -BOX_D / 2]}>
         <planeGeometry args={[BOX_W, BOX_H]} />
-        <meshBasicMaterial map={frontTexture} side={THREE.DoubleSide} transparent opacity={0.60} />
+        <meshBasicMaterial map={frontTexture} side={THREE.DoubleSide} transparent opacity={0.65} depthWrite={false} />
       </mesh>
       <mesh position={[-BOX_W / 2, (SURFACE_Y + FLOOR_Y) / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[BOX_D, BOX_H]} />
-        <meshBasicMaterial map={frontTexture} side={THREE.DoubleSide} transparent opacity={0.60} />
+        <meshBasicMaterial map={frontTexture} side={THREE.DoubleSide} transparent opacity={0.65} depthWrite={false} />
       </mesh>
 
       {/* 7. SEAFLOOR BATHYMETRIC PEDESTAL & SONAR GRID */}
@@ -430,45 +463,41 @@ export default function OceanCrossSection({
           <meshStandardMaterial color="#07192f" roughness={0.7} metalness={0.5} />
         </mesh>
         <gridHelper args={[BOX_W, 6, '#38bdf8', '#0c3057']} position={[0, 0.005, 0]} />
-        <Html position={[0, -0.15, BOX_D / 2 + 0.1]} center style={{ pointerEvents: 'none' }}>
-          <span className="text-[9px] font-mono text-slate-400 bg-slate-950/80 px-2 py-0.5 rounded border border-slate-800 whitespace-nowrap">
-            Visual scale: Normalized Subsurface Slices (0.49m to 11.40m Copernicus GLORYS12V1)
-          </span>
-        </Html>
       </group>
 
-      {/* 8. CALIBRATED COPERNICUS DEPTH RULER (0.49m to 11.40m - EXACT 9 LAYERS) */}
-      <group position={[BOX_W / 2 + 0.05, 0, BOX_D / 2]}>
+      {/* 8. CALIBRATED COPERNICUS DEPTH RULER (ON SIDE EDGE, NO CENTER CLUTTER) */}
+      <group position={[BOX_W / 2 + 0.12, 0, -BOX_D / 2 + 0.3]}>
         {depthRulerEntries.map((d, idx) => (
           <group key={`depth-ruler-${idx}`} position={[0, d.y, 0]}>
-            <mesh position={[-0.05, 0, 0]}>
-              <boxGeometry args={[0.1, 0.012, 0.012]} />
-              <meshBasicMaterial color={d.isSelected ? '#fbbf24' : '#94a3b8'} />
+            <mesh position={[-0.04, 0, 0]}>
+              <boxGeometry args={[0.08, 0.008, 0.008]} />
+              <meshBasicMaterial color={d.isSelected ? slicerColor : '#64748b'} />
             </mesh>
-            <Html position={[0.08, 0, 0]} style={{ pointerEvents: 'auto' }}>
+            <Html position={[0.06, 0, 0]} style={{ pointerEvents: 'auto' }}>
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   if (onSelectDepth) onSelectDepth(d.depth);
                 }}
-                className={`text-[9.5px] font-mono whitespace-nowrap px-2 py-0.5 rounded-md shadow-md backdrop-blur-md transition-all cursor-pointer flex items-center gap-1 ${
+                className={`text-[9px] font-mono whitespace-nowrap px-1.5 py-0.5 rounded shadow-sm backdrop-blur-md transition-all cursor-pointer flex items-center gap-1 ${
                   d.isSelected
-                    ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-extrabold ring-2 ring-amber-300 shadow-amber-500/40 scale-105'
-                    : 'bg-slate-900/85 hover:bg-slate-800 text-sky-200 border border-sky-400/30'
+                    ? 'text-slate-950 font-black scale-105 shadow-md'
+                    : 'bg-slate-900/75 hover:bg-slate-800 text-slate-300 border border-slate-700/60'
                 }`}
+                style={d.isSelected ? { backgroundColor: slicerColor, color: '#020617' } : {}}
               >
                 <span>{d.label}</span>
-                {d.valueLabel && <span className="opacity-75">({d.valueLabel})</span>}
+                {d.isSelected && d.valueLabel && <span className="opacity-80">({d.valueLabel})</span>}
               </button>
             </Html>
           </group>
         ))}
 
         {/* Vertical Depth Scale Axis Line */}
-        <mesh position={[-0.08, (SURFACE_Y + FLOOR_Y) / 2, 0]}>
-          <boxGeometry args={[0.006, BOX_H, 0.006]} />
-          <meshBasicMaterial color="#38bdf8" transparent opacity={0.65} />
+        <mesh position={[-0.04, (SURFACE_Y + FLOOR_Y) / 2, 0]}>
+          <boxGeometry args={[0.004, BOX_H, 0.004]} />
+          <meshBasicMaterial color={slicerColor} transparent opacity={0.65} />
         </mesh>
       </group>
 

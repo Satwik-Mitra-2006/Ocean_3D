@@ -4,10 +4,10 @@ import Sidebar from './components/Sidebar';
 import OceanScene from './components/OceanScene';
 import DataPanel from './components/DataPanel';
 import DataCharts from './components/DataCharts';
-import SettingsModal from './components/SettingsModal';
-import SimulationControls from './components/SimulationControls';
-import TimeControls from './components/TimeControls';
 import ModelObservationComparisonCard from './components/ModelObservationComparisonCard';
+import SettingsModal from './components/SettingsModal';
+import TimeControls from './components/TimeControls';
+import Footer from './components/Footer';
 import { 
   OBSERVATION_STATIONS, 
   getStationObservationAtTime,
@@ -20,13 +20,15 @@ import Ocean3DView from './views/Ocean3DView';
 import ObservationsView from './views/ObservationsView';
 import ModelDataView from './views/ModelDataView';
 import AnalysisView from './views/AnalysisView';
-import AboutView from './views/AboutView';
+import ExportDataView from './views/ExportDataView';
+import ExportModal from './components/ExportModal';
 import './App.css';
 
 export default function App() {
   // Navigation & Modal state
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Interactive Simulation & What-If Scenario State ('baseline' | 'cyclone' | 'monsoon')
   const [simulationScenario, setSimulationScenario] = useState('baseline');
@@ -52,7 +54,7 @@ export default function App() {
   // Time & Date dimension state (strictly bound to user dataset: 17/06/2026 to 23/06/2026)
   const [startDate, setStartDate] = useState('2026-06-17');
   const [endDate, setEndDate] = useState('2026-06-23');
-  const [selectedDate, setSelectedDate] = useState('2026-06-23');
+  const [selectedDate, setSelectedDate] = useState('2026-06-19');
   const [currentTimeHour, setCurrentTimeHour] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -63,8 +65,11 @@ export default function App() {
     metadata: null,
   });
   const [gridPoints, setGridPoints] = useState([]);
-  const [isLoadingGrid, setIsLoadingGrid] = useState(true);
-  const [availableDepths, setAvailableDepths] = useState([0.49, 1.54, 2.65, 3.82, 5.08, 6.44, 7.93, 9.57, 11.40]);
+  const [isLoadingGrid, setIsLoadingGrid] = useState(false);
+  const [availableDepths, setAvailableDepths] = useState([
+    0.49, 1.54, 2.65, 3.82, 5.08, 6.44, 7.93, 9.57, 11.40,
+    25.0, 50.0, 100.0, 200.0, 500.0, 1000.0, 2000.0
+  ]);
 
   // Observation Stations state (Defaulting to Station CB01 - Coastal Radar matching mockup)
   const [stations, setStations] = useState(OBSERVATION_STATIONS);
@@ -96,9 +101,9 @@ export default function App() {
     const health = await oceanDataService.checkHealth();
     setBackendHealth(health);
 
-    // 2. Fetch stations for initial date
+    // 2. Fetch stations for initial date and selected depth
     try {
-      const stationList = await oceanDataService.getStations({ date: selectedDate });
+      const stationList = await oceanDataService.getStations({ date: selectedDate, depth: selectedDepth });
       if (stationList && stationList.length > 0) {
         setStations(stationList);
         const cb01 = stationList.find(s => s.code === 'CB01') || stationList[0];
@@ -113,8 +118,12 @@ export default function App() {
     try {
       const depthRes = await oceanDataService.getAvailableDepths();
       if (depthRes && depthRes.available_depths && depthRes.available_depths.length > 0) {
-        setAvailableDepths(depthRes.available_depths);
-        setSelectedDepth(prev => depthRes.available_depths.includes(prev) ? prev : depthRes.available_depths[0]);
+        const fullDepths = Array.from(new Set([
+          ...depthRes.available_depths,
+          25.0, 50.0, 100.0, 200.0, 500.0, 1000.0, 2000.0
+        ])).sort((a, b) => a - b);
+        setAvailableDepths(fullDepths);
+        setSelectedDepth(prev => fullDepths.includes(prev) ? prev : fullDepths[0]);
       }
     } catch (err) {
       console.error('Error fetching available depths:', err);
@@ -191,36 +200,27 @@ export default function App() {
     fetchStationProfile(st, selectedDate);
   }, [fetchStationProfile, selectedDate]);
 
-  // Compute live station observation adjusted for selected depth & time & scenario
+  // Compute live station observation adjusted for selected depth & time & scenario (strictly exact to NetCDF dataset)
   const liveStationData = useMemo(() => {
     if (!selectedStation) return null;
     let base = getStationObservationAtTime(selectedStation, currentTimeHour, selectedDate || '2026-06-23', selectedDepth);
 
-    // If we have a vertical profile from backend, interpolate physical parameters at selectedDepth
+    // If we have a vertical profile with an exact layer match, sync it safely
     if (verticalProfile && verticalProfile.length > 0) {
-      const nearest = verticalProfile.reduce((prev, curr) => 
-        Math.abs(curr.depth - selectedDepth) < Math.abs(prev.depth - selectedDepth) ? curr : prev
-      );
-      if (nearest) {
-        // Add subtle diurnal wave to the profile point so time of day is reflected
-        const hourAngle = ((currentTimeHour - 6) / 24) * 2 * Math.PI;
-        const thermalDamp = Math.exp(-Number(selectedDepth) / 5.0);
-        const tVar = Math.sin(hourAngle) * (0.45 * thermalDamp);
-        const sVar = Math.sin(hourAngle * 0.5) * (0.05 * thermalDamp);
-        const vVar = Math.cos(hourAngle * 2) * (0.05 * thermalDamp);
-
-        const calcTemp = +(nearest.temperature + tVar).toFixed(2);
-        const calcSal = +(nearest.salinity + sVar).toFixed(2);
-        const calcSpeed = +(Math.max(0.04, (nearest.current_speed || 0.25) + vVar)).toFixed(3);
-        const calcDensity = +(1028.1 - 0.15 * calcTemp + 0.78 * (calcSal - 35) + 0.045 * Number(selectedDepth)).toFixed(2);
-
+      const match = verticalProfile.find(curr => Math.abs(curr.depth - selectedDepth) <= 0.15);
+      if (match && match.depth > 0) {
         base = {
           ...base,
-          depth: selectedDepth,
-          temperature: calcTemp,
-          salinity: calcSal,
-          current_speed: calcSpeed,
-          density: calcDensity
+          depth: Number(selectedDepth),
+          temperature: Number(match.temperature),
+          currentTemp: Number(match.temperature),
+          salinity: Number(match.salinity),
+          currentSalinity: Number(match.salinity),
+          current_speed: Number(match.current_speed ?? base.current_speed),
+          currentSpeed: Number(match.current_speed ?? base.current_speed),
+          density: Number(match.density ?? base.density),
+          u_current: match.u_current ?? base.u_current,
+          v_current: match.v_current ?? base.v_current
         };
       }
     }
@@ -274,10 +274,12 @@ export default function App() {
   }, [selectedStation]);
 
   return (
-    <div className="min-h-screen bg-[#070d19] text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
-      
-      {/* 1. TOP NAVBAR */}
-      <Navbar 
+    <div className="min-h-screen bg-transparent text-slate-100 flex flex-col font-sans selection:bg-blue-600 selection:text-white relative">
+
+      {/* 1. RELATIVE ELEVATED CONTAINER FOR ALL UI COMPONENTS & GLASS PANELS */}
+      <div className="relative z-10 flex flex-col flex-1 min-h-screen">
+        {/* TOP NAVBAR */}
+        <Navbar 
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -291,57 +293,39 @@ export default function App() {
         {/* TAB 1: UNIFIED DASHBOARD */}
         {activeTab === 'dashboard' && (
           <>
-            {/* SCENARIO ENGINE: CYCLONE & MONSOON SIMULATOR */}
-            <SimulationControls
-              simulationScenario={simulationScenario}
-              setSimulationScenario={setSimulationScenario}
-            />
-
-            {/* TEMPORAL CONTROLS: TIME DIMENSION (AM/PM SYNCHRONIZED) */}
-            <TimeControls
-              currentTimeHour={currentTimeHour}
-              setCurrentTimeHour={setCurrentTimeHour}
-              isPlaying={isPlaying}
-              setIsPlaying={setIsPlaying}
-              selectedDate={selectedDate}
-              setSelectedDate={setSelectedDate}
-              startDate={startDate}
-              endDate={endDate}
-              station={liveStationData || selectedStation}
-              dataSource={dataSource}
-            />
-
-            {/* TOP ROW: 4-COLUMN VIEWPORT LAYOUT */}
+            {/* 3-COLUMN VIEWPORT LAYOUT MATCHING REFERENCE MOCKUP */}
             <div className="flex flex-col lg:flex-row gap-3 items-stretch w-full">
               {/* Left Column: Sidebar Parameters & Controls */}
-              <Sidebar
-                layers={layers}
-                setLayers={setLayers}
-                selectedDepth={selectedDepth}
-                setSelectedDepth={setSelectedDepth}
-                primaryVariable={primaryVariable}
-                setPrimaryVariable={setPrimaryVariable}
-                currentTimeHour={currentTimeHour}
-                setCurrentTimeHour={setCurrentTimeHour}
-                isPlaying={isPlaying}
-                setIsPlaying={setIsPlaying}
-                availableDepths={availableDepths}
-                opacity={opacity}
-                setOpacity={setOpacity}
-                stations={stations}
-                selectedStation={selectedStation}
-                onSelectStation={handleSelectStation}
-                startDate={startDate}
-                endDate={endDate}
-                selectedDate={selectedDate}
-                setStartDate={setStartDate}
-                setEndDate={setEndDate}
-                setSelectedDate={setSelectedDate}
-                dataSource={dataSource}
-                setDataSource={setDataSource}
-              />
+              <div className="w-full lg:w-72 xl:w-80 shrink-0 flex flex-col">
+                <Sidebar
+                  layers={layers}
+                  setLayers={setLayers}
+                  selectedDepth={selectedDepth}
+                  setSelectedDepth={setSelectedDepth}
+                  primaryVariable={primaryVariable}
+                  setPrimaryVariable={setPrimaryVariable}
+                  currentTimeHour={currentTimeHour}
+                  setCurrentTimeHour={setCurrentTimeHour}
+                  isPlaying={isPlaying}
+                  setIsPlaying={setIsPlaying}
+                  availableDepths={availableDepths}
+                  opacity={opacity}
+                  setOpacity={setOpacity}
+                  stations={stations}
+                  selectedStation={selectedStation}
+                  onSelectStation={handleSelectStation}
+                  startDate={startDate}
+                  endDate={endDate}
+                  selectedDate={selectedDate}
+                  setStartDate={setStartDate}
+                  setEndDate={setEndDate}
+                  setSelectedDate={setSelectedDate}
+                  dataSource={dataSource}
+                  setDataSource={setDataSource}
+                />
+              </div>
 
-              {/* Center Viewport: 3D Earth Globe with Thermal Colormap & Streamlines + Live Marine Sea-State HUD */}
+              {/* Center Viewport: 3D Earth Globe with Thermal Colormap & Depth Scrubber */}
               <div className="flex-1 min-w-0 flex flex-col gap-3">
                 <OceanScene
                   stations={stations}
@@ -376,29 +360,36 @@ export default function App() {
                   timeSeriesData={timeSeriesData}
                   currentTimeHour={currentTimeHour}
                   selectedDepth={selectedDepth}
+                  setSelectedDepth={setSelectedDepth}
                   selectedDate={selectedDate}
+                  setSelectedDate={setSelectedDate}
                   simulationScenario={simulationScenario}
                   dataSource={dataSource}
                   setDataSource={setDataSource}
                 />
               </div>
 
-              {/* Right Column: Selected Station Telemetry Card */}
-              <DataPanel
-                selectedStation={selectedStation}
-                selectedStationData={liveStationData}
-                onClearSelection={() => handleSelectStation(stations[0])}
-                selectedDepth={selectedDepth}
-                stations={stations}
-                onSelectStation={handleSelectStation}
-                backendHealth={backendHealth}
-                startDate={startDate}
-                endDate={endDate}
-                selectedDate={selectedDate}
-                currentTimeHour={currentTimeHour}
-                dataSource={dataSource}
-                setDataSource={setDataSource}
-              />
+              {/* Right Column: Selected Station Telemetry Card & 7-Day Trend Chart */}
+              <div className="w-full lg:w-72 xl:w-80 shrink-0 flex flex-col">
+                <DataPanel
+                  selectedStation={selectedStation}
+                  selectedStationData={liveStationData}
+                  onClearSelection={() => handleSelectStation(stations[0])}
+                  selectedDepth={selectedDepth}
+                  setSelectedDepth={setSelectedDepth}
+                  stations={stations}
+                  onSelectStation={handleSelectStation}
+                  backendHealth={backendHealth}
+                  startDate={startDate}
+                  endDate={endDate}
+                  selectedDate={selectedDate}
+                  currentTimeHour={currentTimeHour}
+                  dataSource={dataSource}
+                  setDataSource={setDataSource}
+                  primaryVariable={primaryVariable}
+                  setPrimaryVariable={setPrimaryVariable}
+                />
+              </div>
             </div>
 
             {/* BOTTOM ROW: ANALYTICS & AI DIAGNOSIS */}
@@ -406,10 +397,17 @@ export default function App() {
               verticalProfile={verticalProfile}
               depthProfileData={depthProfileData}
               timeSeriesData={timeSeriesData}
-              selectedStation={selectedStation}
+              selectedStation={liveStationData || selectedStation}
               isLiveCopernicus={Boolean(backendHealth.dataset_available)}
               dataSource={dataSource}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              selectedDepth={selectedDepth}
+              setSelectedDepth={setSelectedDepth}
             />
+
+            {/* BOTTOM FOOTER: 3 PILLARS & MOES QUOTE */}
+            <Footer />
           </>
         )}
 
@@ -483,15 +481,41 @@ export default function App() {
             stations={stations}
             onSelectStation={handleSelectStation}
             isLiveCopernicus={Boolean(backendHealth.dataset_available)}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            selectedDepth={selectedDepth}
+            setSelectedDepth={setSelectedDepth}
           />
         )}
 
-        {/* TAB 6: ABOUT & SIH 2026 PRESENTATION GUIDE */}
-        {activeTab === 'about' && (
-          <AboutView />
+        {/* TAB 6: STATION DATA DOWNLOAD & EXPORT CENTER */}
+        {activeTab === 'export-data' && (
+          <ExportDataView
+            stations={stations}
+            selectedStation={selectedStation}
+            onSelectStation={handleSelectStation}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            selectedDepth={selectedDepth}
+            setSelectedDepth={setSelectedDepth}
+            verticalProfile={verticalProfile}
+            timeSeriesData={timeSeriesData}
+            simulationScenario={simulationScenario}
+            dataSource={dataSource}
+            setDataSource={setDataSource}
+          />
         )}
 
       </main>
+
+      {/* Quick Station Export Modal */}
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        station={selectedStation}
+        initialDate={selectedDate}
+        initialDepth={selectedDepth}
+      />
 
       {/* Settings Modal */}
       <SettingsModal
@@ -503,6 +527,7 @@ export default function App() {
         colorScale={colorScale}
         setColorScale={setColorScale}
       />
+      </div>
 
     </div>
   );

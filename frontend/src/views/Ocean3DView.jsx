@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import OceanScene from '../components/OceanScene';
-import SimulationControls from '../components/SimulationControls';
 import TimeControls from '../components/TimeControls';
 import { 
   Globe2, 
@@ -67,14 +66,6 @@ export default function Ocean3DView({
 
   return (
     <div className="flex-1 flex flex-col gap-3 text-slate-100 max-w-[1920px] mx-auto w-full px-3 py-1 select-none animate-in fade-in duration-300">
-      
-      {/* SCENARIO ENGINE: CYCLONE & MONSOON SIMULATOR */}
-      {setSimulationScenario && (
-        <SimulationControls
-          simulationScenario={simulationScenario}
-          setSimulationScenario={setSimulationScenario}
-        />
-      )}
 
       {/* TEMPORAL CONTROLS: TIME DIMENSION (AM/PM SYNCHRONIZED) */}
       <TimeControls
@@ -172,6 +163,17 @@ export default function Ocean3DView({
             >
               <Wind className="h-3 w-3" />
               <span>Currents</span>
+            </button>
+            <button
+              onClick={() => setPrimaryVariable('density')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                primaryVariable === 'density'
+                  ? 'bg-gradient-to-r from-pink-500 to-rose-600 text-white shadow-md shadow-pink-500/40 ring-1 ring-pink-300'
+                  : 'text-slate-400 hover:text-pink-300'
+              }`}
+            >
+              <Activity className="h-3 w-3" />
+              <span>Density (Pink)</span>
             </button>
           </div>
         )}

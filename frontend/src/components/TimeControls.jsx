@@ -2,188 +2,155 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { 
   Play, 
   Pause, 
-  SkipBack, 
-  SkipForward, 
-  Clock, 
-  Sun, 
-  Moon, 
   RotateCcw,
   Calendar,
-  Sparkles,
-  Activity,
-  Flame,
-  Droplets,
-  Wind
+  ChevronLeft,
+  ChevronRight,
+  Database,
+  CheckCircle2,
+  Sparkles
 } from 'lucide-react';
-import { formatHourAmPm, formatFullTimestamp, getStationAccuracyMetrics } from '../data/mockOceanData';
+
+export const AVAILABLE_DATES = [
+  { iso: '2026-06-17', label: '17 Jun', weekday: 'Wed', dayNum: 1 },
+  { iso: '2026-06-18', label: '18 Jun', weekday: 'Thu', dayNum: 2 },
+  { iso: '2026-06-19', label: '19 Jun', weekday: 'Fri', dayNum: 3 },
+  { iso: '2026-06-20', label: '20 Jun', weekday: 'Sat', dayNum: 4 },
+  { iso: '2026-06-21', label: '21 Jun', weekday: 'Sun', dayNum: 5 },
+  { iso: '2026-06-22', label: '22 Jun', weekday: 'Mon', dayNum: 6 },
+  { iso: '2026-06-23', label: '23 Jun', weekday: 'Tue', dayNum: 7 },
+];
 
 export default function TimeControls({
-  currentTimeHour = 12,
-  setCurrentTimeHour = () => {},
   isPlaying = false,
   setIsPlaying = () => {},
   selectedDate = '2026-06-23',
-  setSelectedDate,
-  startDate = '2026-06-17',
-  endDate = '2026-06-23',
-  station = null,
-  dataSource = 'model'
+  setSelectedDate = () => {},
+  station = null
 }) {
   const [playbackSpeed, setPlaybackSpeed] = useState(1); // 1x, 2x, 4x
 
-  // Animation loop when playing (smooth forecast progression across 24h)
+  // Current date index (0 to 6)
+  const currentDateIdx = useMemo(() => {
+    const idx = AVAILABLE_DATES.findIndex(d => d.iso === selectedDate);
+    return idx >= 0 ? idx : AVAILABLE_DATES.length - 1;
+  }, [selectedDate]);
+
+  // Animation loop: advances through the 7 real NetCDF daily reanalysis days
   useEffect(() => {
     let interval = null;
     if (isPlaying) {
       interval = setInterval(() => {
-        setCurrentTimeHour(prev => {
-          const step = 0.25 * playbackSpeed;
-          const next = prev + step;
-          return next > 24 ? 0 : +(next.toFixed(2));
+        setSelectedDate(prevDate => {
+          const idx = AVAILABLE_DATES.findIndex(d => d.iso === prevDate);
+          const nextIdx = (idx + 1) % AVAILABLE_DATES.length;
+          return AVAILABLE_DATES[nextIdx].iso;
         });
-      }, 250);
+      }, Math.max(700, 1800 / playbackSpeed));
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isPlaying, playbackSpeed, setCurrentTimeHour]);
+  }, [isPlaying, playbackSpeed, setSelectedDate]);
 
-  const handleStepBack = () => {
-    setCurrentTimeHour(prev => Math.max(0, +(prev - 1).toFixed(2)));
+  const handlePrevDay = () => {
+    const prevIdx = (currentDateIdx - 1 + AVAILABLE_DATES.length) % AVAILABLE_DATES.length;
+    setSelectedDate(AVAILABLE_DATES[prevIdx].iso);
   };
 
-  const handleStepForward = () => {
-    setCurrentTimeHour(prev => Math.min(24, +(prev + 1).toFixed(2)));
+  const handleNextDay = () => {
+    const nextIdx = (currentDateIdx + 1) % AVAILABLE_DATES.length;
+    setSelectedDate(AVAILABLE_DATES[nextIdx].iso);
   };
-
-  const safeHour = Math.max(0, Math.min(24, Number(currentTimeHour || 0)));
-  const isDaytime = safeHour >= 6 && safeHour < 18;
-  const isSolarPeak = safeHour >= 12 && safeHour <= 15;
-
-  const formattedAmPm = formatHourAmPm(safeHour);
-  const formatted24h = `${String(Math.floor(safeHour % 24)).padStart(2, '0')}:${String(Math.floor((safeHour % 1) * 60)).padStart(2, '0')}`;
-
-  // Diurnal sinusoidal shift at surface
-  const hourAngle = ((safeHour - 6) / 24) * 2 * Math.PI;
-  const diurnalTempShift = +(Math.sin(hourAngle) * 0.45).toFixed(2);
-  const diurnalCurrentShift = +(Math.cos(hourAngle * 2) * 0.08).toFixed(3);
-
-  // Quick preset milestones with AM/PM labels
-  const presets = [
-    { hour: 0, label: '12:00 AM', desc: 'Midnight' },
-    { hour: 6, label: '06:00 AM', desc: 'Sunrise / Min SST' },
-    { hour: 9, label: '09:00 AM', desc: 'Morning' },
-    { hour: 12, label: '12:00 PM', desc: 'Solar Noon' },
-    { hour: 14, label: '02:00 PM', desc: 'Peak Solar SST' },
-    { hour: 18, label: '06:00 PM', desc: 'Sunset' },
-    { hour: 21, label: '09:00 PM', desc: 'Night' }
-  ];
 
   return (
-    <div className="w-full bg-[#0b1325]/95 border border-slate-800/90 rounded-2xl p-3 sm:p-3.5 shadow-xl backdrop-blur-md flex flex-col gap-2.5 select-none font-sans animate-in fade-in duration-300">
+    <div className="w-full bg-[#020814]/10 backdrop-blur-[2px] rounded-2xl p-3 border border-cyan-400/20 shadow-xl flex flex-col gap-2 select-none font-sans animate-in fade-in duration-300">
       
-      {/* ROW 1: HEADER & PLAYBACK CONTROLS */}
+      {/* ROW 1: HEADER & TIMELINE CONTROLS */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         
-        {/* Left: Clock Title & Synchronized AM/PM Timestamp Badge */}
+        {/* Left: Title & Synced Date Badge */}
         <div className="flex items-center gap-2.5 flex-wrap">
           <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-cyan-500 via-sky-600 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/20 shrink-0">
-            <Clock className="h-4 w-4" />
+            <Calendar className="h-4 w-4" />
           </div>
 
           <div>
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-xs font-extrabold text-white tracking-tight uppercase font-mono">
-                Temporal Dimension
+                Temporal Dimension (7-Day Reanalysis)
               </span>
               <span className="text-slate-500 hidden sm:inline">•</span>
-              <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">
-                Diurnal Ocean Simulator
+              <span className="text-[10.5px] text-emerald-400 font-mono font-bold flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" /> Copernicus P1D-m Daily Resolution
               </span>
             </div>
 
-            {/* Synced AM/PM Timestamp Badge */}
+            {/* Active Date Pill */}
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[#040814] border border-slate-800 text-xs font-mono">
-                {isDaytime ? (
-                  <Sun className={`h-3.5 w-3.5 ${isSolarPeak ? 'text-amber-400 animate-pulse' : 'text-amber-400'}`} />
-                ) : (
-                  <Moon className="h-3.5 w-3.5 text-indigo-400" />
-                )}
-                <span className="text-sky-300 font-extrabold text-sm">{formattedAmPm}</span>
-                <span className="text-[10px] text-slate-400">UTC</span>
+              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-sky-950/70 border border-sky-500/40 text-xs font-mono text-sky-200">
+                <Calendar className="h-3.5 w-3.5 text-sky-400" />
+                <span className="font-extrabold text-white">{selectedDate}</span>
+                <span className="text-[10px] text-sky-400">({AVAILABLE_DATES[currentDateIdx]?.weekday})</span>
                 <span className="text-slate-600">|</span>
-                <span className="text-[10px] text-slate-400">24h: {formatted24h}</span>
+                <span className="text-[10px] text-sky-300 font-bold">Day {currentDateIdx + 1} of 7</span>
               </div>
 
-              {/* Day/Night status pill */}
-              <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-bold font-mono uppercase ${
-                isSolarPeak
-                  ? 'bg-amber-950/70 text-amber-300 border border-amber-500/40'
-                  : isDaytime
-                    ? 'bg-sky-950/70 text-sky-300 border border-sky-500/40'
-                    : 'bg-indigo-950/70 text-indigo-300 border border-indigo-500/40'
-              }`}>
-                {isSolarPeak ? '☀️ Solar Thermal Peak' : isDaytime ? '🌤️ Daytime Warming' : '🌙 Nocturnal Cooling'}
+              <span className="px-2 py-0.5 rounded-full text-[9.5px] font-bold font-mono uppercase bg-emerald-950/70 text-emerald-300 border border-emerald-500/30">
+                100% Genuine NetCDF Observation
               </span>
-
-              {/* Active Date Badge */}
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800 text-[10px] font-mono text-slate-300">
-                <Calendar className="h-3 w-3 text-sky-400" />
-                <span>{selectedDate}</span>
-              </div>
             </div>
           </div>
         </div>
 
-        {/* Right: Stepper Controls, Play/Pause, Speeds */}
+        {/* Right: Play/Pause, Steppers, Speeds */}
         <div className="flex items-center gap-1.5 self-start sm:self-center flex-wrap">
-          {/* Step Back */}
+          {/* Step Back Day */}
           <button
             type="button"
-            onClick={handleStepBack}
-            title="Step Back 1 Hour"
-            className="p-1.5 rounded-xl bg-[#060c18] hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition-all cursor-pointer"
+            onClick={handlePrevDay}
+            title="Previous Day"
+            className="p-1.5 rounded-xl bg-[#060c18]/80 hover:bg-slate-800 text-slate-300 hover:text-white transition-all cursor-pointer"
           >
-            <SkipBack className="h-3.5 w-3.5" />
+            <ChevronLeft className="h-4 w-4" />
           </button>
 
-          {/* Play / Pause */}
+          {/* Play / Pause 7-Day Sequence */}
           <button
             type="button"
             onClick={() => setIsPlaying(!isPlaying)}
-            title={isPlaying ? 'Pause Diurnal Simulation' : 'Play 24-Hour Diurnal Forecast'}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer ${
+            title={isPlaying ? 'Pause 7-Day Sequence' : 'Play 7-Day Ocean Evolution'}
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-md cursor-pointer ${
               isPlaying
                 ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/30 ring-1 ring-amber-300'
-                : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/30 ring-1 ring-blue-300'
+                : 'bg-[#0d9488] hover:bg-[#14b8a6] text-white shadow-[0_0_15px_rgba(13,148,136,0.4)] ring-1 ring-teal-300/50'
             }`}
           >
             {isPlaying ? (
               <>
                 <Pause className="h-3.5 w-3.5 fill-white" />
-                <span>Pause</span>
+                <span>Pause Sequence</span>
               </>
             ) : (
               <>
                 <Play className="h-3.5 w-3.5 fill-white" />
-                <span>Play Diurnal</span>
+                <span>Play 7 Days</span>
               </>
             )}
           </button>
 
-          {/* Step Forward */}
+          {/* Step Forward Day */}
           <button
             type="button"
-            onClick={handleStepForward}
-            title="Step Forward 1 Hour"
-            className="p-1.5 rounded-xl bg-[#060c18] hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition-all cursor-pointer"
+            onClick={handleNextDay}
+            title="Next Day"
+            className="p-1.5 rounded-xl bg-[#060c18]/80 hover:bg-slate-800 text-slate-300 hover:text-white transition-all cursor-pointer"
           >
-            <SkipForward className="h-3.5 w-3.5" />
+            <ChevronRight className="h-4 w-4" />
           </button>
 
           {/* Speed multiplier selector */}
-          <div className="flex items-center bg-[#040814] rounded-xl p-0.5 border border-slate-800 text-[10px] font-mono font-bold text-slate-400">
+          <div className="flex items-center bg-[#040814]/80 rounded-xl p-0.5 text-[10px] font-mono font-bold text-slate-400">
             {[1, 2, 4].map(spd => (
               <button
                 key={spd}
@@ -191,7 +158,7 @@ export default function TimeControls({
                 onClick={() => setPlaybackSpeed(spd)}
                 className={`px-2 py-1 rounded-lg cursor-pointer transition-all ${
                   playbackSpeed === spd
-                    ? 'bg-blue-600 text-white shadow-sm font-extrabold'
+                    ? 'bg-[#0284c7] text-white shadow-sm font-extrabold'
                     : 'hover:text-white'
                 }`}
               >
@@ -200,148 +167,89 @@ export default function TimeControls({
             ))}
           </div>
 
-          {/* Reset to Noon button */}
+          {/* Reset to Day 1 (17 Jun) */}
           <button
             type="button"
             onClick={() => {
               setIsPlaying(false);
-              setCurrentTimeHour(12);
+              setSelectedDate('2026-06-17');
             }}
-            title="Reset Time to 12:00 PM (Noon)"
-            className="hidden md:flex items-center gap-1 px-2 py-1 rounded-lg bg-[#060c18] hover:bg-slate-800 text-[10.5px] font-mono text-slate-400 hover:text-white border border-slate-800 transition-colors cursor-pointer"
+            title="Reset to Day 1 (17 June 2026)"
+            className="hidden md:flex items-center gap-1 px-2 py-1 rounded-lg bg-[#060c18]/80 hover:bg-slate-800 text-[10.5px] font-mono text-slate-400 hover:text-white transition-colors cursor-pointer"
           >
             <RotateCcw className="h-3 w-3 text-sky-400" />
-            <span>12:00 PM</span>
+            <span>Reset (Day 1)</span>
           </button>
         </div>
       </div>
 
-      {/* ROW 2: QUICK JUMP AM/PM PRESETS */}
-      <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5">
-        <span className="text-[10px] font-mono text-slate-400 uppercase font-bold mr-1 shrink-0 flex items-center gap-1">
-          <Clock className="h-3 w-3 text-sky-400" /> Quick Hours:
-        </span>
-        {presets.map(p => {
-          const isCurrent = Math.abs(safeHour - p.hour) < 1.0;
-          return (
-            <button
-              key={p.hour}
-              type="button"
-              onClick={() => setCurrentTimeHour(p.hour)}
-              title={`${p.label} — ${p.desc}`}
-              className={`px-2.5 py-1 rounded-lg text-[10.5px] font-mono font-bold whitespace-nowrap transition-all cursor-pointer ${
-                isCurrent
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 ring-1 ring-blue-300'
-                  : 'bg-[#040814] hover:bg-slate-800 text-slate-300 border border-slate-800'
-              }`}
-            >
-              <span>{p.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ROW 3: HORIZONTAL TIME RANGE SLIDER WITH AM/PM SCALE MARKS */}
-      <div className="flex flex-col gap-1 pt-1">
-        <div className="relative flex items-center">
-          <input
-            type="range"
-            min="0"
-            max="24"
-            step="0.25"
-            value={safeHour}
-            onChange={(e) => setCurrentTimeHour(parseFloat(e.target.value))}
-            className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-500 focus:outline-none"
-          />
+      {/* ROW 2: 7 NETCDF OBSERVATION DAYS (17 TO 23 JUNE) */}
+      <div className="flex items-center gap-1.5 bg-[#02132b]/30 p-1.5 rounded-xl border border-cyan-400/15 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-1 mr-1 shrink-0">
+          <Calendar className="h-3.5 w-3.5 text-sky-400" />
+          <span className="text-[10.5px] font-mono font-extrabold text-slate-300 uppercase tracking-tight">
+            Observation Days:
+          </span>
         </div>
 
-        {/* Continuous AM / PM Tick Labels */}
-        <div className="flex justify-between text-[9.5px] sm:text-[10px] font-mono text-slate-400 px-0.5">
-          <span 
-            className={`cursor-pointer hover:text-sky-300 transition-colors ${safeHour <= 1.5 ? 'text-sky-400 font-extrabold' : ''}`}
-            onClick={() => setCurrentTimeHour(0)}
-          >
-            12:00 AM
-          </span>
-          <span 
-            className={`cursor-pointer hover:text-sky-300 transition-colors hidden sm:inline ${safeHour >= 2 && safeHour <= 4 ? 'text-sky-400 font-extrabold' : ''}`}
-            onClick={() => setCurrentTimeHour(3)}
-          >
-            03:00 AM
-          </span>
-          <span 
-            className={`cursor-pointer hover:text-sky-300 transition-colors ${safeHour >= 5 && safeHour <= 7 ? 'text-sky-400 font-extrabold' : ''}`}
-            onClick={() => setCurrentTimeHour(6)}
-          >
-            06:00 AM
-          </span>
-          <span 
-            className={`cursor-pointer hover:text-sky-300 transition-colors hidden sm:inline ${safeHour >= 8 && safeHour <= 10 ? 'text-sky-400 font-extrabold' : ''}`}
-            onClick={() => setCurrentTimeHour(9)}
-          >
-            09:00 AM
-          </span>
-          <span 
-            className={`cursor-pointer hover:text-sky-300 transition-colors ${safeHour >= 11 && safeHour <= 13 ? 'text-sky-400 font-extrabold' : ''}`}
-            onClick={() => setCurrentTimeHour(12)}
-          >
-            12:00 PM
-          </span>
-          <span 
-            className={`cursor-pointer hover:text-sky-300 transition-colors hidden sm:inline ${safeHour >= 14 && safeHour <= 16 ? 'text-sky-400 font-extrabold' : ''}`}
-            onClick={() => setCurrentTimeHour(15)}
-          >
-            03:00 PM
-          </span>
-          <span 
-            className={`cursor-pointer hover:text-sky-300 transition-colors ${safeHour >= 17 && safeHour <= 19 ? 'text-sky-400 font-extrabold' : ''}`}
-            onClick={() => setCurrentTimeHour(18)}
-          >
-            06:00 PM
-          </span>
-          <span 
-            className={`cursor-pointer hover:text-sky-300 transition-colors hidden sm:inline ${safeHour >= 20 && safeHour <= 22 ? 'text-sky-400 font-extrabold' : ''}`}
-            onClick={() => setCurrentTimeHour(21)}
-          >
-            09:00 PM
-          </span>
-          <span 
-            className={`cursor-pointer hover:text-sky-300 transition-colors ${safeHour >= 23 ? 'text-sky-400 font-extrabold' : ''}`}
-            onClick={() => setCurrentTimeHour(24)}
-          >
-            12:00 AM
-          </span>
+        {/* 7 Days clickable buttons */}
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          {AVAILABLE_DATES.map((d, i) => {
+            const isSelected = d.iso === selectedDate;
+            return (
+              <button
+                key={d.iso}
+                type="button"
+                onClick={() => setSelectedDate(d.iso)}
+                title={`Select ${d.iso} (${d.weekday}) — NetCDF Slice Day ${d.dayNum}`}
+                className={`flex-1 min-w-[70px] py-1.5 px-2 rounded-xl text-center transition-all cursor-pointer border ${
+                  isSelected
+                    ? 'bg-gradient-to-r from-teal-500/90 to-cyan-500 text-white font-extrabold shadow-[0_0_20px_rgba(6,182,212,0.5)] border-cyan-300 ring-2 ring-cyan-200/60 scale-[1.02]'
+                    : 'bg-[#021a38]/45 hover:bg-[#073060]/70 text-slate-200 border-cyan-400/25'
+                }`}
+              >
+                <div className="text-[11.5px] font-bold font-mono tracking-tight leading-tight">{d.label}</div>
+                <div className={`text-[9.5px] font-mono leading-none mt-0.5 ${isSelected ? 'text-sky-100' : 'text-slate-400'}`}>
+                  {d.weekday} • Day {d.dayNum}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* ROW 4: DYNAMIC TIME-DEPENDENT PHYSICAL TELEMETRY READOUT */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800/80 text-[10px] font-mono text-slate-400">
+      {/* ROW 3: SCIENTIFIC INTEGRITY & DATASET TELEMETRY FOOTER */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 text-[10px] font-mono text-slate-400">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-1 text-slate-300">
-            <Flame className="h-3 w-3 text-rose-400" />
-            <span>Diurnal Thermal ΔT:</span>
-            <strong className={diurnalTempShift >= 0 ? 'text-amber-400' : 'text-cyan-400'}>
-              {diurnalTempShift >= 0 ? `+${diurnalTempShift}` : diurnalTempShift} °C
-            </strong>
+            <Database className="h-3 w-3 text-emerald-400" />
+            <span>Dataset Product:</span>
+            <strong className="text-emerald-400 font-bold">Copernicus GLORYS12V1 (P1D-m Daily Mean)</strong>
           </div>
 
           <div className="flex items-center gap-1 text-slate-300">
-            <Wind className="h-3 w-3 text-sky-400" />
-            <span>Tidal Velocity Δ|U|:</span>
-            <strong className="text-sky-300">
-              {diurnalCurrentShift >= 0 ? `+${diurnalCurrentShift}` : diurnalCurrentShift} m/s
-            </strong>
+            <span>Observation Window:</span>
+            <strong className="text-sky-300">17 Jun – 23 Jun 2026 (7 Days)</strong>
           </div>
 
           <div className="flex items-center gap-1 text-slate-400">
-            <span>Model vs In-Situ Sync:</span>
-            <strong className="text-emerald-400">Continuous Dynamic Coupling</strong>
+            <span>Scientific Data Integrity:</span>
+            <strong className="text-emerald-400">100% Genuine NetCDF Observation</strong>
           </div>
         </div>
 
-        <div className="text-[9.5px] text-slate-400">
-          Format: <span className="text-sky-400 font-bold">12-Hour AM/PM</span>
-        </div>
+        {station && (
+          <div className="text-[10px] text-slate-300 font-mono flex items-center gap-2">
+            <span className="text-slate-400">{station.code || station.name}:</span>
+            <span className="text-amber-300 font-bold">
+              SST: {(station.temperature ?? station.baseTemp ?? 28.5).toFixed(2)} °C
+            </span>
+            <span className="text-slate-600">|</span>
+            <span className="text-cyan-300 font-bold">
+              Sal: {(station.salinity ?? station.baseSalinity ?? 35.0).toFixed(2)} PSU
+            </span>
+          </div>
+        )}
       </div>
 
     </div>

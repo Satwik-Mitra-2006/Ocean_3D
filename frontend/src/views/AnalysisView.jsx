@@ -24,7 +24,11 @@ export default function AnalysisView({
   selectedStation,
   stations = [],
   onSelectStation,
-  isLiveCopernicus = true
+  isLiveCopernicus = true,
+  selectedDate = '2026-06-23',
+  setSelectedDate = () => {},
+  selectedDepth = 0.49,
+  setSelectedDepth = () => {}
 }) {
   const [activeAnalysisTopic, setActiveAnalysisTopic] = useState('thermocline');
 
@@ -138,6 +142,10 @@ export default function AnalysisView({
           timeSeriesData={timeSeriesData}
           selectedStation={selectedStation}
           isLiveCopernicus={isLiveCopernicus}
+          selectedDate={selectedDate}
+          setSelectedDate={setSelectedDate}
+          selectedDepth={selectedDepth}
+          setSelectedDepth={setSelectedDepth}
         />
       </div>
 
