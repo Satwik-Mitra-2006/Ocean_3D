@@ -1,0 +1,10 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+.ruff_cache
+frontend/
+*.bat
+backend/data/*.nc
+backend/__pycache__
