@@ -7,3 +7,4 @@ pandas>=2.0.0
 xarray>=2024.0.0
 netCDF4>=1.6.5
 copernicusmarine>=1.0.0
+python-multipart>=0.0.12

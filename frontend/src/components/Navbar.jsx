@@ -20,6 +20,8 @@ export default function Navbar({
   activeTab, 
   setActiveTab, 
   onOpenSettings, 
+  onOpenIngest,
+  onOpenScienceTour,
   backendHealth, 
   pointsCount = 0 
 }) {
@@ -59,37 +61,59 @@ export default function Navbar({
           </div>
 
           {/* Center: Navigation Tabs */}
-          <nav className="hidden md:flex items-center gap-1 bg-[#050a14]/80 p-1 rounded-xl border border-cyan-500/15">
-            {navItems.map(item => {
+          <nav className="hidden md:flex items-center gap-1 bg-[#020814]/40 p-1 rounded-2xl border border-cyan-400/20 shadow-inner">
+            {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 font-bold'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                      ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-md shadow-sky-500/30'
+                      : 'text-slate-300 hover:text-white hover:bg-cyan-900/30'
                   }`}
                 >
-                  <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                  {item.label}
+                  <Icon className="h-3.5 w-3.5" />
+                  <span>{item.label}</span>
                 </button>
               );
             })}
           </nav>
 
           {/* Right: Connection Status & Controls */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+
+            {/* Science Tour Mode Button (Outreach) */}
+            <button
+              type="button"
+              onClick={onOpenScienceTour}
+              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-600/30 to-rose-600/30 hover:from-amber-600/50 hover:to-rose-600/50 border border-amber-500/40 text-amber-300 text-xs font-bold transition-all shadow-sm cursor-pointer"
+              title="Interactive Science Storytelling & Public Outreach"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
+              <span>Tour</span>
+            </button>
+
+            {/* Ingest Data Button */}
+            <button
+              type="button"
+              onClick={onOpenIngest}
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-500/40 text-cyan-300 text-xs font-bold transition-all shadow-sm cursor-pointer"
+              title="Upload NetCDF / CSV or Connect OPeNDAP"
+            >
+              <Database className="h-3.5 w-3.5 text-cyan-400" />
+              <span>Ingest</span>
+            </button>
 
             {/* Connection Status */}
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/30 bg-[#051a14]/80 text-emerald-300 text-xs font-semibold">
+            <div className="hidden xl:flex items-center gap-2 px-2.5 py-1 rounded-full border border-emerald-500/30 bg-[#051a14]/80 text-emerald-300 text-xs font-semibold">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span>Copernicus Live | {pointsCount || 1122} 3D Points</span>
+              <span>Copernicus Live Feed</span>
             </div>
 
             <div className="h-5 w-px bg-cyan-500/20 hidden sm:block" />

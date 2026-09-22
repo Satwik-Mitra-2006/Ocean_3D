@@ -80,6 +80,7 @@ export function valueToColor(value, min, max, mode = 'temperature') {
     salinity: ['#0f172a', '#1e3a8a', '#0284c7', '#0d9488', '#2dd4bf', '#a3e635', '#fde047'],
     currents: ['#020617', '#1e3a8a', '#0284c7', '#00f0ff', '#67e8f9', '#e0f2fe', '#ffffff'],
     density: ['#fdf2f8', '#fbcfe8', '#f472b6', '#ec4899', '#db2777', '#be185d', '#701a75'], // Pink / Magenta gradient for density
+    chlorophyll: ['#022c22', '#064e3b', '#047857', '#10b981', '#34d399', '#a7f3d0', '#fef08a'], // Emerald to algae-gold for BGC Chlorophyll-a
     difference: ['#06b6d4', '#38bdf8', '#e2e8f0', '#fca5a5', '#ef4444'] // Diverging: negative bias to positive bias
   };
 
@@ -106,7 +107,7 @@ function createDataDrivenTexture(profile = [], mode = 'temperature', dataRange =
     const ratio = i / (steps - 1); // 0 at surface (0.49m), 1 at floor (11.40m)
 
     // Density increases with depth (min at surface, max at floor)
-    // Salinity, Temperature, Currents decrease with depth (max at surface, min at floor)
+    // Salinity, Temperature, Currents, Chlorophyll decrease with depth (max at surface, min at floor)
     const depthVal = mode === 'density'
       ? min + ratio * (max - min)
       : max - ratio * (max - min);
@@ -170,7 +171,8 @@ export default function OceanCrossSection({
   selectedStation = null,
   selectedDate = '2026-06-23',
   dataSource = 'model', // 'model' | 'insitu' | 'difference'
-  isPlaying = true
+  isPlaying = true,
+  verticalExaggeration = 1
 }) {
   const waterGeoRef = useRef();
   const [activeProbe, setActiveProbe] = useState(null);
@@ -196,14 +198,16 @@ export default function OceanCrossSection({
       if (mode === 'salinity') return { min: 34.2, max: 35.8 };
       if (mode === 'currents') return { min: 0.05, max: 0.45 };
       if (mode === 'density') return { min: 1023.2, max: 1024.1 };
+      if (mode === 'chlorophyll' || mode === 'chl') return { min: 0.05, max: 2.8 };
       return { min: 28.5, max: 31.5 };
     }
 
-    const key = mode === 'salinity' ? 'salinity' : mode === 'currents' ? 'current_speed' : mode === 'density' ? 'density' : 'temperature';
+    const key = mode === 'salinity' ? 'salinity' : mode === 'currents' ? 'current_speed' : mode === 'density' ? 'density' : (mode === 'chlorophyll' || mode === 'chl') ? 'chlorophyll' : 'temperature';
     const vals = realProfile.map(p => p[key]).filter(v => v !== null && !isNaN(v));
 
     if (vals.length === 0) {
       if (mode === 'density') return { min: 1023.2, max: 1024.1 };
+      if (mode === 'chlorophyll' || mode === 'chl') return { min: 0.05, max: 2.8 };
       return { min: 28.5, max: 31.5 };
     }
 
@@ -314,8 +318,10 @@ export default function OceanCrossSection({
     return valueToColor(slicerVal, dataRange.min, dataRange.max, mode);
   }, [slicerVal, dataRange, mode]);
 
+  const vertScale = Math.min(3.0, Math.max(0.6, 0.75 + (Number(verticalExaggeration) || 1) * 0.045));
+
   return (
-    <group position={[0, 0.45, 0]}>
+    <group position={[0, 0.45, 0]} scale={[1, vertScale, 1]}>
       
       {/* 1. TOP SURFACE WATER PLANE WITH GENTLE REALISTIC WAVE DISPLACEMENT */}
       <mesh position={[0, SURFACE_Y, 0]} rotation={[-Math.PI / 2, 0, 0]} onClick={handleColumnClick}>

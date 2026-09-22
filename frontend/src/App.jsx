@@ -1,4 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  Sliders, 
+  BarChart2, 
+  Sparkles, 
+  Eye, 
+  EyeOff, 
+  Maximize2 
+} from 'lucide-react';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import OceanScene from './components/OceanScene';
@@ -22,6 +32,8 @@ import ModelDataView from './views/ModelDataView';
 import AnalysisView from './views/AnalysisView';
 import ExportDataView from './views/ExportDataView';
 import ExportModal from './components/ExportModal';
+import DataIngestionModal from './components/DataIngestionModal';
+import ScienceTourModal from './components/ScienceTourModal';
 import './App.css';
 
 export default function App() {
@@ -29,6 +41,17 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isIngestModalOpen, setIsIngestModalOpen] = useState(false);
+  const [isScienceTourOpen, setIsScienceTourOpen] = useState(false);
+
+  // Responsive sidebar collapse controls
+  const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
+  const [isRightCollapsed, setIsRightCollapsed] = useState(false);
+
+  // Volumetric & Isosurface 3D Rendering State
+  const [verticalExaggeration, setVerticalExaggeration] = useState(10);
+  const [showIsosurface, setShowIsosurface] = useState(false);
+  const [isosurfaceTemp, setIsosurfaceTemp] = useState(28.0);
 
   // Interactive Simulation & What-If Scenario State ('baseline' | 'cyclone' | 'monsoon')
   const [simulationScenario, setSimulationScenario] = useState('baseline');
@@ -46,6 +69,7 @@ export default function App() {
   const [selectedDepth, setSelectedDepth] = useState(0.49); // Default to real Copernicus surface layer
   const [opacity, setOpacity] = useState(0.85);
   const [colorScale, setColorScale] = useState('turbo');
+  const [scaleType, setScaleType] = useState('linear');
   const [primaryVariable, setPrimaryVariable] = useState('thetao');
 
   // Data Source mode: 'model' (Numerical Model / Copernicus GLORYS12V1) or 'insitu' (In-Situ Observation Buoys)
@@ -280,12 +304,14 @@ export default function App() {
       <div className="relative z-10 flex flex-col flex-1 min-h-screen">
         {/* TOP NAVBAR */}
         <Navbar 
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        backendHealth={backendHealth}
-        pointsCount={gridPoints.length || 1122}
-      />
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenIngest={() => setIsIngestModalOpen(true)}
+          onOpenScienceTour={() => setIsScienceTourOpen(true)}
+          backendHealth={backendHealth}
+          pointsCount={gridPoints.length || 1122}
+        />
 
       {/* 2. MAIN APPLICATION VIEWS (ROUTED BY activeTab) */}
       <main className="flex-1 w-full px-3 sm:px-4 py-3 flex flex-col gap-3 max-w-[1920px] mx-auto">
@@ -294,36 +320,75 @@ export default function App() {
         {activeTab === 'dashboard' && (
           <>
             {/* 3-COLUMN VIEWPORT LAYOUT MATCHING REFERENCE MOCKUP */}
-            <div className="flex flex-col lg:flex-row gap-3 items-stretch w-full">
+            <div className="flex flex-col lg:flex-row gap-3 items-stretch w-full relative">
+              
               {/* Left Column: Sidebar Parameters & Controls */}
-              <div className="w-full lg:w-72 xl:w-80 shrink-0 flex flex-col">
-                <Sidebar
-                  layers={layers}
-                  setLayers={setLayers}
-                  selectedDepth={selectedDepth}
-                  setSelectedDepth={setSelectedDepth}
-                  primaryVariable={primaryVariable}
-                  setPrimaryVariable={setPrimaryVariable}
-                  currentTimeHour={currentTimeHour}
-                  setCurrentTimeHour={setCurrentTimeHour}
-                  isPlaying={isPlaying}
-                  setIsPlaying={setIsPlaying}
-                  availableDepths={availableDepths}
-                  opacity={opacity}
-                  setOpacity={setOpacity}
-                  stations={stations}
-                  selectedStation={selectedStation}
-                  onSelectStation={handleSelectStation}
-                  startDate={startDate}
-                  endDate={endDate}
-                  selectedDate={selectedDate}
-                  setStartDate={setStartDate}
-                  setEndDate={setEndDate}
-                  setSelectedDate={setSelectedDate}
-                  dataSource={dataSource}
-                  setDataSource={setDataSource}
-                />
-              </div>
+              {isLeftCollapsed ? (
+                <div className="hidden lg:flex flex-col justify-start">
+                  <button
+                    type="button"
+                    onClick={() => setIsLeftCollapsed(false)}
+                    className="p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-cyan-500/30 text-cyan-300 shadow-xl flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer hover:scale-105"
+                    title="Expand Controls Sidebar"
+                  >
+                    <Sliders className="w-4 h-4 text-cyan-400" />
+                    <span className="[writing-mode:vertical-lr] tracking-wider uppercase text-[10px] font-mono py-2">Controls</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-full lg:w-72 xl:w-80 shrink-0 flex flex-col relative transition-all duration-300">
+                  {/* Quick Collapse Header */}
+                  <div className="hidden lg:flex items-center justify-between px-2 py-1 mb-1 text-[11px] text-slate-400">
+                    <span className="font-mono text-cyan-400/80 font-bold uppercase tracking-wider">Control Panel</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsLeftCollapsed(true)}
+                      className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer border border-transparent hover:border-cyan-500/20"
+                      title="Collapse sidebar to expand 3D view"
+                    >
+                      <ChevronLeft className="w-3 h-3" />
+                      <span>Minimize</span>
+                    </button>
+                  </div>
+                  <Sidebar
+                    layers={layers}
+                    setLayers={setLayers}
+                    selectedDepth={selectedDepth}
+                    setSelectedDepth={setSelectedDepth}
+                    primaryVariable={primaryVariable}
+                    setPrimaryVariable={setPrimaryVariable}
+                    currentTimeHour={currentTimeHour}
+                    setCurrentTimeHour={setCurrentTimeHour}
+                    isPlaying={isPlaying}
+                    setIsPlaying={setIsPlaying}
+                    availableDepths={availableDepths}
+                    opacity={opacity}
+                    setOpacity={setOpacity}
+                    stations={stations}
+                    selectedStation={selectedStation}
+                    onSelectStation={handleSelectStation}
+                    startDate={startDate}
+                    endDate={endDate}
+                    selectedDate={selectedDate}
+                    setStartDate={setStartDate}
+                    setEndDate={setEndDate}
+                    setSelectedDate={setSelectedDate}
+                    dataSource={dataSource}
+                    setDataSource={setDataSource}
+                    verticalExaggeration={verticalExaggeration}
+                    setVerticalExaggeration={setVerticalExaggeration}
+                    showIsosurface={showIsosurface}
+                    setShowIsosurface={setShowIsosurface}
+                    isosurfaceTemp={isosurfaceTemp}
+                    setIsosurfaceTemp={setIsosurfaceTemp}
+                    colorScale={colorScale}
+                    setColorScale={setColorScale}
+                    scaleType={scaleType}
+                    setScaleType={setScaleType}
+                  />
+                </div>
+              )}
 
               {/* Center Viewport: 3D Earth Globe with Thermal Colormap & Depth Scrubber */}
               <div className="flex-1 min-w-0 flex flex-col gap-3">
@@ -352,9 +417,12 @@ export default function App() {
                   setSelectedDate={setSelectedDate}
                   dataSource={dataSource}
                   setDataSource={setDataSource}
+                  verticalExaggeration={verticalExaggeration}
+                  showIsosurface={showIsosurface}
+                  isosurfaceTemp={isosurfaceTemp}
                 />
 
-                {/* DEDICATED MODEL VS IN-SITU VALIDATION TABLE & COMPACT DIURNAL SPARKLINE CHARTS */}
+                {/* Model vs Observation In-Situ Validation Card */}
                 <ModelObservationComparisonCard
                   station={liveStationData || selectedStation}
                   timeSeriesData={timeSeriesData}
@@ -370,26 +438,54 @@ export default function App() {
               </div>
 
               {/* Right Column: Selected Station Telemetry Card & 7-Day Trend Chart */}
-              <div className="w-full lg:w-72 xl:w-80 shrink-0 flex flex-col">
-                <DataPanel
-                  selectedStation={selectedStation}
-                  selectedStationData={liveStationData}
-                  onClearSelection={() => handleSelectStation(stations[0])}
-                  selectedDepth={selectedDepth}
-                  setSelectedDepth={setSelectedDepth}
-                  stations={stations}
-                  onSelectStation={handleSelectStation}
-                  backendHealth={backendHealth}
-                  startDate={startDate}
-                  endDate={endDate}
-                  selectedDate={selectedDate}
-                  currentTimeHour={currentTimeHour}
-                  dataSource={dataSource}
-                  setDataSource={setDataSource}
-                  primaryVariable={primaryVariable}
-                  setPrimaryVariable={setPrimaryVariable}
-                />
-              </div>
+              {isRightCollapsed ? (
+                <div className="hidden lg:flex flex-col justify-start">
+                  <button
+                    type="button"
+                    onClick={() => setIsRightCollapsed(false)}
+                    className="p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-cyan-500/30 text-cyan-300 shadow-xl flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer hover:scale-105"
+                    title="Expand Telemetry Panel"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span className="[writing-mode:vertical-lr] tracking-wider uppercase text-[10px] font-mono py-2">Telemetry</span>
+                    <BarChart2 className="w-4 h-4 text-cyan-400" />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-full lg:w-72 xl:w-80 shrink-0 flex flex-col relative transition-all duration-300">
+                  {/* Quick Collapse Header */}
+                  <div className="hidden lg:flex items-center justify-between px-2 py-1 mb-1 text-[11px] text-slate-400">
+                    <span className="font-mono text-cyan-400/80 font-bold uppercase tracking-wider">Live Telemetry</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsRightCollapsed(true)}
+                      className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer border border-transparent hover:border-cyan-500/20"
+                      title="Collapse telemetry to expand 3D view"
+                    >
+                      <span>Minimize</span>
+                      <ChevronRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <DataPanel
+                    selectedStation={selectedStation}
+                    selectedStationData={liveStationData}
+                    onClearSelection={() => handleSelectStation(stations[0])}
+                    selectedDepth={selectedDepth}
+                    setSelectedDepth={setSelectedDepth}
+                    stations={stations}
+                    onSelectStation={handleSelectStation}
+                    backendHealth={backendHealth}
+                    startDate={startDate}
+                    endDate={endDate}
+                    selectedDate={selectedDate}
+                    currentTimeHour={currentTimeHour}
+                    dataSource={dataSource}
+                    setDataSource={setDataSource}
+                    primaryVariable={primaryVariable}
+                    setPrimaryVariable={setPrimaryVariable}
+                  />
+                </div>
+              )}
             </div>
 
             {/* BOTTOM ROW: ANALYTICS & AI DIAGNOSIS */}
@@ -439,6 +535,9 @@ export default function App() {
             setSelectedDate={setSelectedDate}
             dataSource={dataSource}
             setDataSource={setDataSource}
+            verticalExaggeration={verticalExaggeration}
+            showIsosurface={showIsosurface}
+            isosurfaceTemp={isosurfaceTemp}
           />
         )}
 
@@ -526,6 +625,24 @@ export default function App() {
         setSelectedDepth={setSelectedDepth}
         colorScale={colorScale}
         setColorScale={setColorScale}
+      />
+
+      {/* Multi-format Ocean Data Ingestion Modal (.nc, .csv, .txt, OPeNDAP) */}
+      <DataIngestionModal
+        isOpen={isIngestModalOpen}
+        onClose={() => setIsIngestModalOpen(false)}
+        onIngestSuccess={(res) => {
+          console.log('Ingested ocean dataset:', res);
+          loadData();
+        }}
+      />
+
+      {/* Public Science Outreach & Interactive Storytelling Walkthrough */}
+      <ScienceTourModal
+        isOpen={isScienceTourOpen}
+        onClose={() => setIsScienceTourOpen(false)}
+        onSelectStation={handleSelectStation}
+        stations={stations}
       />
       </div>
 

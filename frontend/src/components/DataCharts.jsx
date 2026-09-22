@@ -18,6 +18,8 @@ export const resolveStationCode = (stn) => {
   if (raw.includes('BD08') || raw.includes('station-01')) return 'BD08';
   if (raw.includes('BD11') || raw.includes('station-05')) return 'BD11';
   if (raw.includes('TB05') || raw.includes('station-06')) return 'TB05';
+  if (raw.includes('GLIDER-INCOIS') || raw.includes('station-07')) return 'GLIDER-INCOIS-01';
+  if (raw.includes('GLIDER-NIOT') || raw.includes('station-08')) return 'GLIDER-NIOT-02';
   if (raw.includes('CB01') || raw.includes('station-04')) return 'CB01';
   return 'CB01';
 };
@@ -34,7 +36,7 @@ export default function DataCharts({
   selectedDepth = 0.49,
   setSelectedDepth = () => {}
 }) {
-  const [activeTab, setActiveTab] = useState('vertical-profile'); // 'vertical-profile' | 'time-series' | 'sound-velocity' | 'density-stratification' | 'basin-comparison'
+  const [activeTab, setActiveTab] = useState('vertical-profile'); // 'vertical-profile' | 'time-series' | 'sound-velocity' | 'density-stratification'
   const [depthZoomMode, setDepthZoomMode] = useState('mixed'); // 'mixed' (0-50m focus) | 'full' (0-2000m)
 
   const depthNum = Number(selectedDepth || 0.49);
@@ -176,18 +178,6 @@ export default function DataCharts({
                 : 'bg-[#02132b]/50 text-slate-300 hover:text-white border border-cyan-400/20'
             }`}
           >
-            Density Stratification (Pycnocline)
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('basin-comparison')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-              activeTab === 'basin-comparison'
-                ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30 font-bold'
-                : 'bg-[#02132b]/50 text-slate-300 hover:text-white border border-cyan-400/20'
-            }`}
-          >
-            Dual Basin Comparison (AS vs BoB)
           </button>
         </div>
 
@@ -1236,158 +1226,6 @@ export default function DataCharts({
             </div>
           );
         })()}
-
-        {/* TAB 5: DUAL BASIN COMPARISON (ARABIAN SEA VS BAY OF BENGAL) */}
-        {activeTab === 'basin-comparison' && (
-          <div className="flex flex-col gap-3 pt-3">
-            {/* Top Overview Badges */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* Arabian Sea Card */}
-              <div className="bg-[#02132b]/50 backdrop-blur-md rounded-xl p-3 border border-teal-400/30 flex flex-col gap-2">
-                <div className="flex items-center justify-between pb-1.5 border-b border-cyan-400/20">
-                  <div className="flex items-center gap-1.5 font-bold text-xs text-teal-300">
-                    <span className="w-2 h-2 rounded-full bg-teal-400" />
-                    <span>Arabian Sea (Western Basin)</span>
-                  </div>
-                  <span className="text-[10px] font-mono px-2 py-0.2 rounded bg-teal-950/80 text-teal-400 border border-teal-800">
-                    Evaporative Regime (E &gt; P)
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
-                  <div className="bg-[#03152c]/50 p-1.5 rounded border border-cyan-400/20">
-                    <span className="text-slate-400 block text-[9px]">SURFACE SALINITY</span>
-                    <strong className="text-teal-300 text-xs">36.4 PSU (High)</strong>
-                  </div>
-                  <div className="bg-[#03152c]/50 p-1.5 rounded border border-cyan-400/20">
-                    <span className="text-slate-400 block text-[9px]">AVERAGE SST</span>
-                    <strong className="text-white text-xs">27.4 °C</strong>
-                  </div>
-                  <div className="bg-[#03152c]/50 p-1.5 rounded border border-cyan-400/20">
-                    <span className="text-slate-400 block text-[9px]">MIXED LAYER DEPTH</span>
-                    <strong className="text-slate-200 text-xs">65 m (Deep)</strong>
-                  </div>
-                  <div className="bg-[#03152c]/50 p-1.5 rounded border border-cyan-400/20">
-                    <span className="text-slate-400 block text-[9px]">BARRIER LAYER</span>
-                    <strong className="text-amber-400 text-xs">Thin (~4 m)</strong>
-                  </div>
-                </div>
-                <p className="text-[10px] text-slate-400 leading-tight">
-                  High evaporation driven by dry desert winds. Intense summer coastal upwelling along Somali and Kerala coasts brings cold nutrient-rich waters to the surface.
-                </p>
-              </div>
-
-              {/* Bay of Bengal Card */}
-              <div className="bg-[#02132b]/50 backdrop-blur-md rounded-xl p-3 border border-amber-400/30 flex flex-col gap-2">
-                <div className="flex items-center justify-between pb-1.5 border-b border-cyan-400/20">
-                  <div className="flex items-center gap-1.5 font-bold text-xs text-amber-300">
-                    <span className="w-2 h-2 rounded-full bg-amber-400" />
-                    <span>Bay of Bengal (Eastern Basin)</span>
-                  </div>
-                  <span className="text-[10px] font-mono px-2 py-0.2 rounded bg-amber-950/80 text-amber-400 border border-amber-800">
-                    Runoff Regime (P + R &gt; E)
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
-                  <div className="bg-[#03152c]/50 p-1.5 rounded border border-cyan-400/20">
-                    <span className="text-slate-400 block text-[9px]">SURFACE SALINITY</span>
-                    <strong className="text-amber-300 text-xs">32.2 PSU (Low)</strong>
-                  </div>
-                  <div className="bg-[#03152c]/50 p-1.5 rounded border border-cyan-400/20">
-                    <span className="text-slate-400 block text-[9px]">AVERAGE SST</span>
-                    <strong className="text-rose-400 text-xs">29.2 °C (Warm)</strong>
-                  </div>
-                  <div className="bg-[#03152c]/50 p-1.5 rounded border border-cyan-400/20">
-                    <span className="text-slate-400 block text-[9px]">MIXED LAYER DEPTH</span>
-                    <strong className="text-slate-200 text-xs">22 m (Shallow)</strong>
-                  </div>
-                  <div className="bg-[#03152c]/50 p-1.5 rounded border border-cyan-400/20">
-                    <span className="text-slate-400 block text-[9px]">BARRIER LAYER</span>
-                    <strong className="text-rose-400 text-xs">Thick (~38 m)</strong>
-                  </div>
-                </div>
-                <p className="text-[10px] text-slate-400 leading-tight">
-                  Enormous freshwater influx from Ganga &amp; Brahmaputra rivers forms a buoyant low-salinity surface lens, suppressing vertical mixing and fueling intense tropical cyclones.
-                </p>
-              </div>
-            </div>
-
-            {/* Side-by-Side SVG Thermohaline Profile Chart */}
-            <div className="bg-[#02132b]/50 backdrop-blur-md rounded-xl p-3 border border-cyan-400/20 flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white">Comparative Vertical Stratification (0 - 2000m)</span>
-                <div className="flex items-center gap-3 text-[10px] font-mono">
-                  <div className="flex items-center gap-1">
-                    <span className="w-3 h-1 bg-teal-400 rounded-full" />
-                    <span className="text-teal-300">Arabian Sea Salinity</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="w-3 h-1 bg-amber-400 rounded-full" />
-                    <span className="text-amber-300">Bay of Bengal Salinity</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="w-3 h-1 bg-rose-400 rounded-full" />
-                    <span className="text-rose-300">BoB SST (&gt;28°C)</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="relative w-full h-44">
-                <svg className="w-full h-full" viewBox="0 0 540 160">
-                  {/* Depth Y Grid */}
-                  {[0, 200, 500, 1000, 2000].map(d => {
-                    const y = mapDepthToY(d, 160, 15, 20);
-                    return (
-                      <g key={d}>
-                        <line x1="45" y1={y} x2="525" y2={y} stroke="rgba(56, 189, 248, 0.15)" strokeDasharray="2 2" strokeWidth="1" />
-                        <text x="38" y={y + 3} textAnchor="end" fontSize="9" fill="#94a3b8" fontFamily="monospace">
-                          {d}m
-                        </text>
-                      </g>
-                    );
-                  })}
-
-                  {/* Arabian Sea Salinity Curve (Teal) */}
-                  <path
-                    d="M 450 15 C 455 35, 440 60, 420 85 C 400 115, 380 130, 375 140"
-                    fill="none"
-                    stroke="#14b8a6"
-                    strokeWidth="2.5"
-                  />
-
-                  {/* Bay of Bengal Salinity Curve (Amber) */}
-                  <path
-                    d="M 160 15 C 220 30, 360 60, 400 85 C 390 115, 378 130, 375 140"
-                    fill="none"
-                    stroke="#f59e0b"
-                    strokeWidth="2.5"
-                  />
-
-                  {/* Bay of Bengal Temperature Curve (Rose) */}
-                  <path
-                    d="M 500 15 C 480 30, 380 50, 240 85 C 160 115, 120 130, 95 140"
-                    fill="none"
-                    stroke="#f43f5e"
-                    strokeWidth="2"
-                    strokeDasharray="4 2"
-                  />
-
-                  {/* Legend annotation */}
-                  <text x="60" y="30" fontSize="9" fill="#f59e0b" fontFamily="sans-serif">
-                    ← Freshwater Lens (Low Salinity &amp; High Heat)
-                  </text>
-                  <text x="310" y="30" fontSize="9" fill="#14b8a6" fontFamily="sans-serif">
-                    High Surface Evaporation →
-                  </text>
-                </svg>
-              </div>
-
-              {/* Bottom Insight Takeaway */}
-              <div className="bg-[#03152c]/50 border border-sky-400/30 rounded-lg p-2 text-[11px] text-sky-200">
-                <strong>Oceanographic Science Takeaway:</strong> The Bay of Bengal's thick freshwater barrier layer acts as a thermal blanket, keeping surface temperatures consistently &gt;28.5°C and fueling rapid cyclone intensification. Conversely, the Arabian Sea experiences intense evaporative cooling and coastal upwelling, keeping it generally more resilient to convective storms.
-              </div>
-            </div>
-          </div>
-        )}
 
       </div>
     </section>

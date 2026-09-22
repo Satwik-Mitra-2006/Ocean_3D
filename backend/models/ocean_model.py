@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
 
 
@@ -56,23 +56,25 @@ class OceanDataResponse(BaseModel):
     current_dir_compass: Optional[str] = Field("145° SE", description="Compass bearing direction (e.g. 145° SE)")
     wave_height: Optional[float] = Field(2.0, description="Significant wave height in meters")
     density: Optional[float] = Field(None, description="Calculated seawater potential density in kg/m3")
+    chlorophyll: Optional[float] = Field(None, description="Chlorophyll-a concentration in mg/m3")
     timestamp: str = Field(..., description="Historical reanalysis ISO 8601 UTC timestamp")
     data_type: str = Field("reanalysis", description="Data category (historical reanalysis)")
     metadata: Optional[DatasetMetadata] = Field(None, description="Dataset provenance metadata")
 
 
 class StationResponse(BaseModel):
-    """Schema for in-situ ocean observation stations (simulated observation buoys/floats)."""
+    """Schema for in-situ ocean observation stations (buoys, floats, underwater gliders)."""
     id: str = Field(..., description="Unique station identifier")
-    code: Optional[str] = Field(None, description="Short buoy telemetry code (e.g. BD08, AD02, CB01)")
+    code: Optional[str] = Field(None, description="Short buoy telemetry code (e.g. BD08, AD02, CB01, GLIDER-01)")
     name: str = Field(..., description="Descriptive station name")
-    station_type: Optional[str] = Field("Moored Ocean Buoy", description="Platform type (e.g. Coastal Radar, Moored Buoy, Argo Float)")
+    station_type: Optional[str] = Field("Moored Ocean Buoy", description="Platform type (e.g. Coastal Radar, Moored Buoy, Argo Float, Underwater Glider)")
     latitude: float = Field(..., description="Station latitude in decimal degrees")
     longitude: float = Field(..., description="Station longitude in decimal degrees")
     depth: float = Field(..., description="Observation sensor depth in meters")
     temperature: float = Field(..., description="Water temperature in °C")
     salinity: float = Field(..., description="Salinity in PSU")
     current_speed: float = Field(..., description="Current speed in m/s")
+    chlorophyll: Optional[float] = Field(None, description="Chlorophyll-a concentration in mg/m3")
     u_current: Optional[float] = Field(None, description="Zonal current velocity (eastward) in m/s (uo)")
     v_current: Optional[float] = Field(None, description="Meridional current velocity (northward) in m/s (vo)")
     current_direction: Optional[float] = Field(145.0, description="Current flow direction in degrees")
@@ -83,6 +85,7 @@ class StationResponse(BaseModel):
     timestamp: str = Field(..., description="Observation timestamp")
     region: Optional[str] = Field(None, description="Oceanographic sub-basin or region")
     source: Optional[str] = Field(None, description="Data provider or operating institution")
+    trajectory: Optional[List[Dict[str, Any]]] = Field(None, description="Glider 4D sawtooth trajectory: [{lat, lon, depth, time}]")
 
 
 class OceanGridPoint(BaseModel):
@@ -92,6 +95,7 @@ class OceanGridPoint(BaseModel):
     depth: float = Field(..., description="Depth layer in meters")
     temperature: float = Field(..., description="Potential temperature in °C (thetao)")
     salinity: float = Field(..., description="Salinity in PSU (so)")
+    chlorophyll: Optional[float] = Field(None, description="Chlorophyll-a concentration in mg/m3")
     u_current: float = Field(..., description="Eastward current velocity component in m/s (uo)")
     v_current: float = Field(..., description="Northward current velocity component in m/s (vo)")
     current_speed: float = Field(..., description="Resultant current velocity in m/s")
@@ -127,6 +131,7 @@ class VerticalProfilePoint(BaseModel):
     salinity: float = Field(..., description="Salinity in PSU")
     current_speed: float = Field(..., description="Current speed in m/s")
     density: float = Field(..., description="Calculated seawater density in kg/m3")
+    chlorophyll: Optional[float] = Field(None, description="Chlorophyll-a concentration in mg/m3")
     u_current: Optional[float] = Field(None, description="Zonal current velocity in m/s (uo)")
     v_current: Optional[float] = Field(None, description="Meridional current velocity in m/s (vo)")
 
@@ -165,4 +170,17 @@ class AIAgentQueryResponse(BaseModel):
     key_impacts: List[str] = Field(default_factory=list, description="Bullet point physical / ecological impacts")
     confidence: float = Field(0.95, description="Confidence score")
     scenario_type: Optional[str] = Field(None, description="Identified question category / scenario")
+
+
+class DataIngestResponse(BaseModel):
+    """Response schema for multi-format file / stream ingestion."""
+    status: str = Field(..., description="Ingestion status (success, error)")
+    filename: str = Field(..., description="Ingested file or stream identifier")
+    format_detected: str = Field(..., description="Format detected: NetCDF-4, CSV, ASCII, OPeNDAP")
+    cf_compliant: bool = Field(True, description="Whether dataset conforms to CF-1.8 oceanographic conventions")
+    dimensions: Dict[str, int] = Field(default_factory=dict, description="Identified grid or record dimensions")
+    variables_mapped: List[str] = Field(default_factory=list, description="Ocean variables extracted/mapped")
+    spatial_bounds: Optional[Dict[str, float]] = Field(None, description="Bounding box [lat_min, lat_max, lon_min, lon_max]")
+    time_steps_count: int = Field(1, description="Number of temporal slices parsed")
+    message: str = Field(..., description="User-facing summary message")
 

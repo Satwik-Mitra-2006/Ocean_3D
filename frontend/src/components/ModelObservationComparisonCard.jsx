@@ -71,7 +71,9 @@ export default function ModelObservationComparisonCard({
                   String(rawCode).includes('BD08') ? 'BD08' :
                   String(rawCode).includes('CB01') ? 'CB01' :
                   String(rawCode).includes('BD11') ? 'BD11' :
-                  String(rawCode).includes('TB05') ? 'TB05' : 'BD08';
+                  String(rawCode).includes('TB05') ? 'TB05' :
+                  String(rawCode).includes('GLIDER-INCOIS') || String(rawCode).includes('station-07') ? 'GLIDER-INCOIS-01' :
+                  String(rawCode).includes('GLIDER-NIOT') || String(rawCode).includes('station-08') ? 'GLIDER-NIOT-02' : 'BD08';
   const stnName = currentStn.name || `Station ${stnCode}`;
 
   // Station-specific scientific validation accuracy metrics (RMSE, MAE, R², Bias)

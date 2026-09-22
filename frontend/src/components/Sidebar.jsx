@@ -42,7 +42,17 @@ export default function Sidebar({
   setSelectedDate,
   dataSource = 'model',
   setDataSource,
-  showAdvanced = false
+  showAdvanced = false,
+  verticalExaggeration = 10,
+  setVerticalExaggeration,
+  showIsosurface = false,
+  setShowIsosurface,
+  isosurfaceTemp = 28.0,
+  setIsosurfaceTemp,
+  colorScale = 'turbo',
+  setColorScale,
+  scaleType = 'linear',
+  setScaleType
 }) {
   const depths = availableDepths && availableDepths.length > 0
     ? availableDepths
@@ -232,8 +242,8 @@ export default function Sidebar({
           VARIABLES:
         </label>
 
-        {/* 4 Variable Toggles: Temperature, Salinity, Current, Density */}
-        <div className="grid grid-cols-4 gap-1.5">
+        {/* 5 Variable Toggles: Temperature, Salinity, Current, Density, Chlorophyll */}
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
           {/* Temperature */}
           <button
             type="button"
@@ -289,11 +299,25 @@ export default function Sidebar({
             <Gauge className="h-4 w-4" />
             <span className="text-[9px] leading-tight text-center font-bold">Density</span>
           </button>
+
+          {/* Chlorophyll-a */}
+          <button
+            type="button"
+            onClick={() => setPrimaryVariable && setPrimaryVariable('chlorophyll')}
+            className={`py-2 px-1 rounded-xl text-xs font-semibold flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              primaryVariable === 'chlorophyll' || primaryVariable === 'chl'
+                ? 'bg-gradient-to-br from-emerald-500 to-lime-600 text-white shadow-md shadow-emerald-500/40 ring-1 ring-emerald-300'
+                : 'bg-[#02132b]/50 hover:bg-slate-800/80 text-slate-300 border border-cyan-400/20'
+            }`}
+          >
+            <span className="w-4 h-4 rounded-full bg-emerald-400 flex items-center justify-center text-[10px] text-slate-950 font-extrabold">Chl</span>
+            <span className="text-[9px] leading-tight text-center font-bold">Chlorophyll</span>
+          </button>
         </div>
 
         {/* Visualization Sliders */}
-        <div className="pt-2 flex flex-col gap-2 border-t border-cyan-400/20">
-          <div className="text-[10px] uppercase font-bold text-slate-400 font-mono">Visualization:</div>
+        <div className="pt-2 flex flex-col gap-2.5 border-t border-cyan-400/20">
+          <div className="text-[10px] uppercase font-bold text-slate-400 font-mono">Visualization & Perception:</div>
           
           {/* Opacity Slider */}
           <div>
@@ -310,6 +334,76 @@ export default function Sidebar({
               onChange={(e) => setOpacity && setOpacity(parseFloat(e.target.value))}
               className="w-full h-1.5 bg-[#02132b]/80 border border-cyan-400/20 rounded-lg appearance-none cursor-pointer accent-blue-500"
             />
+          </div>
+
+          {/* Vertical Exaggeration Slider (Mandatory SIH Requirement) */}
+          <div>
+            <div className="flex justify-between text-[10px] font-mono text-slate-300 mb-1">
+              <span className="flex items-center gap-1">
+                <span>Vertical Exaggeration</span>
+                <span className="text-[9px] text-amber-400 font-bold">(1×–50×)</span>
+              </span>
+              <span className="text-amber-400 font-bold">{verticalExaggeration || 10}×</span>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="50"
+              step="1"
+              value={verticalExaggeration || 10}
+              onChange={(e) => setVerticalExaggeration && setVerticalExaggeration(parseInt(e.target.value, 10))}
+              className="w-full h-1.5 bg-[#02132b]/80 border border-cyan-400/20 rounded-lg appearance-none cursor-pointer accent-amber-500"
+            />
+          </div>
+
+          {/* Dynamic Colorbar Palette & Log/Linear Scale (Mandatory SIH Requirement) */}
+          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-cyan-400/10">
+            <div>
+              <div className="text-[10px] font-mono text-slate-300 mb-1 flex items-center justify-between">
+                <span>Color Palette:</span>
+              </div>
+              <select
+                value={colorScale || 'turbo'}
+                onChange={(e) => setColorScale && setColorScale(e.target.value)}
+                className="w-full bg-[#02132b] text-[10px] font-mono text-cyan-300 border border-cyan-400/30 rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:border-cyan-400"
+                title="Select 3D ocean colormap palette"
+              >
+                <option value="turbo">Turbo (Spectral)</option>
+                <option value="viridis">Viridis (Perceptual)</option>
+                <option value="thermal">Thermal (Infrared)</option>
+              </select>
+            </div>
+
+            <div>
+              <div className="text-[10px] font-mono text-slate-300 mb-1 flex items-center justify-between">
+                <span>Scale Mode:</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1 p-0.5 bg-[#02132b] border border-cyan-400/30 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setScaleType && setScaleType('linear')}
+                  className={`py-0.5 rounded text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                    scaleType === 'linear'
+                      ? 'bg-cyan-500 text-slate-950 shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Linear
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScaleType && setScaleType('log')}
+                  className={`py-0.5 rounded text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                    scaleType === 'log'
+                      ? 'bg-cyan-500 text-slate-950 shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Logarithmic scale for bio-optical chlorophyll gradients"
+                >
+                  Log
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Depth Range Slider */}
@@ -336,6 +430,44 @@ export default function Sidebar({
               <span>{minDepth.toFixed(2)}m (Surface)</span>
               <span>{maxDepth.toFixed(2)}m (Base)</span>
             </div>
+          </div>
+
+          {/* 3D Isosurface Extraction Controls */}
+          <div className="pt-2 border-t border-cyan-400/20 flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-bold text-slate-300 font-mono">
+                3D Isosurface (Isotherm):
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowIsosurface && setShowIsosurface(!showIsosurface)}
+                className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-all cursor-pointer ${
+                  showIsosurface
+                    ? 'bg-cyan-600 text-white shadow-sm ring-1 ring-cyan-400'
+                    : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {showIsosurface ? 'ON' : 'OFF'}
+              </button>
+            </div>
+            {showIsosurface && (
+              <div className="grid grid-cols-3 gap-1 pt-0.5">
+                {[20.0, 26.0, 28.0].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setIsosurfaceTemp && setIsosurfaceTemp(t)}
+                    className={`py-1 rounded text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                      (isosurfaceTemp || 28.0) === t
+                        ? 'bg-amber-600 text-white shadow-sm ring-1 ring-amber-300'
+                        : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                    }`}
+                  >
+                    {t}°C
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -7,7 +7,7 @@ Exposes historical reanalysis oceanographic variables from Copernicus Marine.
 """
 
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Path, Query, status
+from fastapi import APIRouter, File, HTTPException, Path, Query, UploadFile, status, Body
 
 from models.ocean_model import (
     AIAgentQueryRequest,
@@ -17,6 +17,7 @@ from models.ocean_model import (
     OceanGridResponse,
     StationResponse,
     VerticalProfileResponse,
+    DataIngestResponse,
 )
 from services.ocean_service import ocean_service
 
@@ -167,4 +168,27 @@ async def get_ocean_grid(
 async def query_ai_agent(req: AIAgentQueryRequest):
     """Query Ocean AI Agent with station context and arbitrary user questions."""
     return ocean_service.query_ocean_ai_agent(req)
+
+
+@router.post(
+    "/ingest/upload",
+    response_model=DataIngestResponse,
+    summary="Ingest Ocean Data File",
+    description="Automated ingestion of NetCDF (.nc, .nc4) and delimited text (CSV, ASCII) ocean datasets.",
+)
+async def ingest_upload(file: UploadFile = File(...)):
+    """Upload and ingest NetCDF or CSV/ASCII ocean observation datasets."""
+    content = await file.read()
+    return ocean_service.ingest_file(filename=file.filename or "uploaded_dataset.nc", content=content)
+
+
+@router.post(
+    "/ingest/opendap",
+    response_model=DataIngestResponse,
+    summary="Connect Remote OPeNDAP Endpoint",
+    description="Validates and registers remote OPeNDAP / ERDDAP ocean server streaming URL.",
+)
+async def ingest_opendap(url: str = Body(..., embed=True, description="Remote TDS or ERDDAP catalog URL")):
+    """Register and validate remote OPeNDAP / ERDDAP endpoint."""
+    return ocean_service.ingest_opendap(url=url)
 

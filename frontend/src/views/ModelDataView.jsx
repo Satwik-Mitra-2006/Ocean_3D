@@ -821,28 +821,40 @@ export default function ModelDataView({
             </div>
           </div>
 
-          {/* API Endpoints & Health */}
+          {/* Live Ocean Data Services */}
           <div className="bg-[#0b1325]/90 border border-slate-800/80 rounded-2xl p-4 flex flex-col gap-3 shadow-xl">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-1.5">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider font-sans flex items-center gap-1.5">
               <Server className="h-4 w-4 text-emerald-400" />
-              FastAPI REST Endpoints
+              Live Ocean Data Services
             </h3>
-            <div className="space-y-2 font-mono text-xs">
-              <div className="p-2 rounded-lg bg-[#060c18] border border-slate-800">
-                <span className="text-emerald-400 font-bold block text-[10px]">GET /api/health</span>
-                <span className="text-[11px] text-slate-400 font-sans">Returns NetCDF availability & metadata</span>
+            <div className="space-y-2 text-xs">
+              <div className="p-2.5 rounded-xl bg-[#060c18] border border-slate-800/80 flex items-start gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 mt-1.5 shrink-0 animate-pulse" />
+                <div>
+                  <span className="text-emerald-300 font-bold block text-xs">Copernicus Dataset Status</span>
+                  <span className="text-[11px] text-slate-400 leading-tight">Monitors NetCDF reanalysis connectivity & metadata</span>
+                </div>
               </div>
-              <div className="p-2 rounded-lg bg-[#060c18] border border-slate-800">
-                <span className="text-sky-400 font-bold block text-[10px]">GET /api/ocean/grid?stride=20</span>
-                <span className="text-[11px] text-slate-400 font-sans">Extracts 3D volumetric point clouds</span>
+              <div className="p-2.5 rounded-xl bg-[#060c18] border border-slate-800/80 flex items-start gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-sky-400 mt-1.5 shrink-0" />
+                <div>
+                  <span className="text-sky-300 font-bold block text-xs">3D Volumetric Ocean Grid</span>
+                  <span className="text-[11px] text-slate-400 leading-tight">Streams 3D temperature, salinity & current velocity fields</span>
+                </div>
               </div>
-              <div className="p-2 rounded-lg bg-[#060c18] border border-slate-800">
-                <span className="text-purple-400 font-bold block text-[10px]">GET /api/ocean/profile?lat=..&lon=..</span>
-                <span className="text-[11px] text-slate-400 font-sans">Extracts 0.49m - 11.40m vertical profile slice</span>
+              <div className="p-2.5 rounded-xl bg-[#060c18] border border-slate-800/80 flex items-start gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-purple-400 mt-1.5 shrink-0" />
+                <div>
+                  <span className="text-purple-300 font-bold block text-xs">Vertical Depth Stratification</span>
+                  <span className="text-[11px] text-slate-400 leading-tight">Extracts depth profiles from 0.49m to 11.40m</span>
+                </div>
               </div>
-              <div className="p-2 rounded-lg bg-[#060c18] border border-slate-800">
-                <span className="text-amber-400 font-bold block text-[10px]">GET /api/ocean/stations</span>
-                <span className="text-[11px] text-slate-400 font-sans">Lists in-situ buoys & coastal radar stations</span>
+              <div className="p-2.5 rounded-xl bg-[#060c18] border border-slate-800/80 flex items-start gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0" />
+                <div>
+                  <span className="text-amber-300 font-bold block text-xs">In-Situ Fleet Telemetry</span>
+                  <span className="text-[11px] text-slate-400 leading-tight">Coordinates moored buoys, Argo floats & underwater gliders</span>
+                </div>
               </div>
             </div>
           </div>

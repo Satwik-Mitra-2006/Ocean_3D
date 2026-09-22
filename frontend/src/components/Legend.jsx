@@ -121,6 +121,33 @@ export default function Legend({
         </div>
       )}
 
+      {/* Chlorophyll-a (BGC) Bar */}
+      {(primaryVariable === 'chlorophyll' || primaryVariable === 'chl' || selectedStation?.chlorophyll) && (
+        <div className="pt-1 border-t border-white/10">
+          <div className="flex items-center justify-between text-xs font-semibold text-slate-200 mb-1">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span>Chlorophyll-a</span>
+            </span>
+            <span className="text-[11px] font-mono font-bold text-emerald-300">
+              {selectedStation?.chlorophyll !== undefined ? `${Number(selectedStation.chlorophyll).toFixed(2)} mg/m³` : '0.05 — 3.5 mg/m³'}
+            </span>
+          </div>
+          <div 
+            className="relative h-2.5 w-full rounded-full border border-white/20 shadow-inner overflow-visible"
+            style={{
+              background: 'linear-gradient(to right, #022c22, #065f46, #10b981, #34d399, #facc15)'
+            }}
+          />
+          <div className="flex justify-between text-[8px] font-mono text-slate-400 mt-0.5 px-0.5">
+            <span>0.05</span>
+            <span>1.0</span>
+            <span>2.5</span>
+            <span>3.5 mg/m³</span>
+          </div>
+        </div>
+      )}
+
       {/* Current Velocity */}
       {layers.currents && (
         <div className="pt-1 border-t border-white/10 flex items-center justify-between text-xs font-semibold text-slate-200">

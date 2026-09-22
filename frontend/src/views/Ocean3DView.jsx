@@ -42,11 +42,14 @@ export default function Ocean3DView({
   selectedDate = '2026-06-23',
   setSelectedDate,
   dataSource = 'model',
-  setDataSource
+  setDataSource,
+  verticalExaggeration = 10,
+  showIsosurface = false,
+  isosurfaceTemp = 28.0
 }) {
   const [activePreset, setActivePreset] = useState('CB01');
 
-  // Camera region presets
+  // Camera region presets including Gliders
   const presets = [
     { id: 'CB01', name: 'Lakshadweep (CB01)', code: 'CB01', desc: 'Nine Degree Channel & Lagoons' },
     { id: 'BD08', name: 'Arabian Sea (BD08)', code: 'BD08', desc: 'Central Arabian Upwelling' },
@@ -54,6 +57,8 @@ export default function Ocean3DView({
     { id: 'AD02', name: 'North Arabian (AD02)', code: 'AD02', desc: 'Gulf of Oman Front' },
     { id: 'ARGO-1844', name: 'South Shelf (Argo)', code: 'ARGO-1844', desc: 'Deep Ocean Profiler' },
     { id: 'TB05', name: 'Equatorial Jet (TB05)', code: 'TB05', desc: 'Tsunami Early Warning' },
+    { id: 'GLIDER-INCOIS-01', name: 'Bay Glider (GL01)', code: 'GLIDER-INCOIS-01', desc: 'Autonomous Sawtooth Dive' },
+    { id: 'GLIDER-NIOT-02', name: 'Arabian Glider (UG02)', code: 'GLIDER-NIOT-02', desc: 'Coastal Bio-Optical Profiler' },
   ];
 
   const handleSelectPreset = (p) => {
@@ -173,7 +178,18 @@ export default function Ocean3DView({
               }`}
             >
               <Activity className="h-3 w-3" />
-              <span>Density (Pink)</span>
+              <span>Density</span>
+            </button>
+            <button
+              onClick={() => setPrimaryVariable('chlorophyll')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                primaryVariable === 'chlorophyll'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/40 ring-1 ring-emerald-300'
+                  : 'text-slate-400 hover:text-emerald-300'
+              }`}
+            >
+              <Sparkles className="h-3 w-3" />
+              <span>Chlorophyll</span>
             </button>
           </div>
         )}
@@ -207,6 +223,9 @@ export default function Ocean3DView({
           setSelectedDate={setSelectedDate}
           dataSource={dataSource}
           setDataSource={setDataSource}
+          verticalExaggeration={verticalExaggeration}
+          showIsosurface={showIsosurface}
+          isosurfaceTemp={isosurfaceTemp}
         />
       </div>
 

@@ -59,12 +59,30 @@ function getScalarColor(val, variable = 'sst', colorScale = 'turbo') {
   } else if (variable === 'density') {
     // Seawater density 1021.0 to 1027.0 kg/m³
     t = Math.max(0, Math.min(1, (val - 1021.0) / 6.0));
+  } else if (variable === 'chlorophyll' || variable === 'chl') {
+    // Chlorophyll-a range 0.05 to 3.5 mg/m3
+    t = Math.max(0, Math.min(1, (val - 0.05) / 3.45));
   } else {
     // Current speed 0.05 to 0.75 m/s
     t = Math.max(0, Math.min(1, (val - 0.05) / 0.70));
   }
 
   const c = new THREE.Color();
+
+  if (variable === 'chlorophyll' || variable === 'chl') {
+    // Ocean Chlorophyll Palette: Deep Navy -> Ocean Cyan -> Chlorophyll Emerald -> Phytoplankton Gold
+    if (t < 0.25) {
+      const u = t / 0.25;
+      c.setRGB(0.02, 0.15 + u * 0.35, 0.45 + u * 0.15);
+    } else if (t < 0.65) {
+      const u = (t - 0.25) / 0.40;
+      c.setRGB(0.05 + u * 0.25, 0.55 + u * 0.40, 0.25 - u * 0.15);
+    } else {
+      const u = (t - 0.65) / 0.35;
+      c.setRGB(0.30 + u * 0.65, 0.95 - u * 0.10, 0.10);
+    }
+    return c;
+  }
 
   if (colorScale === 'thermal') {
     if (t < 0.33) {
@@ -98,35 +116,29 @@ function getScalarColor(val, variable = 'sst', colorScale = 'turbo') {
   return c;
 }
 
+// Spherical Point Cloud Component
 export default function Copernicus3DLayer({
   gridPoints = [],
-  primaryVariable = 'sst',
+  primaryVariable = 'thetao',
   colorScale = 'turbo',
+  selectedDepth = 0.49,
   opacity = 0.85,
+  pointSize = 0.032,
   showCurrents = true,
   visible = true,
-  selectedDepth = 0,
   onSelectPoint,
   onHoverPoint
 }) {
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const flowVectorsRef = useRef();
 
-  // Filter grid points: only ocean water (exclude land), matching depth
+  // Filter grid points for Indian Ocean and active depth
   const activePoints = useMemo(() => {
     if (!gridPoints || gridPoints.length === 0) return [];
-    
-    // Filter out points that are on land or invalid
-    const oceanOnly = gridPoints.filter(p => {
-      const lat = p.latitude ?? p.lat;
-      const lon = p.longitude ?? p.lon;
-      if (lat === undefined || lon === undefined) return false;
-      if (isIndianLand(lat, lon)) return false;
-      if (p.temperature <= 0 || p.salinity <= 0) return false;
-      return true;
-    });
 
-    if (selectedDepth > 0) {
+    const oceanOnly = gridPoints.filter(p => !isIndianLand(p.latitude ?? p.lat, p.longitude ?? p.lon));
+
+    if (selectedDepth !== null && selectedDepth !== undefined) {
       const depths = [...new Set(oceanOnly.map(p => p.depth))];
       const closest = depths.reduce((prev, curr) =>
         Math.abs(curr - selectedDepth) < Math.abs(prev - selectedDepth) ? curr : prev, depths[0]
@@ -159,6 +171,8 @@ export default function Copernicus3DLayer({
         scalarVal = pt.current_speed;
       } else if (primaryVariable === 'density') {
         scalarVal = pt.density ?? (1000 + 0.805 * (pt.salinity || 35.0) - 0.0065 * Math.pow((pt.temperature || 28.0) - 4, 2));
+      } else if (primaryVariable === 'chlorophyll' || primaryVariable === 'chl') {
+        scalarVal = pt.chlorophyll ?? Math.max(0.08, 1.8 * Math.exp(-(pt.depth || 0.5) / 35.0));
       }
 
       const col = getScalarColor(scalarVal, primaryVariable, colorScale);

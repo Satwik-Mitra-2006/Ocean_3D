@@ -66,7 +66,9 @@ export default function DataPanel({
                   String(rawCode).includes('BD08') ? 'BD08' :
                   String(rawCode).includes('CB01') ? 'CB01' :
                   String(rawCode).includes('BD11') ? 'BD11' :
-                  String(rawCode).includes('TB05') ? 'TB05' : 'CB01';
+                  String(rawCode).includes('TB05') ? 'TB05' :
+                  String(rawCode).includes('GLIDER-INCOIS') || String(rawCode).includes('station-07') ? 'GLIDER-INCOIS-01' :
+                  String(rawCode).includes('GLIDER-NIOT') || String(rawCode).includes('station-08') ? 'GLIDER-NIOT-02' : 'CB01';
   const stnAccuracy = useMemo(() => getStationAccuracyMetrics(stnCode, selectedDate, selectedDepth), [stnCode, selectedDate, selectedDepth]);
 
   // Real-world physical base values from Copernicus NetCDF daily telemetry
@@ -77,6 +79,7 @@ export default function DataPanel({
   const rawT = Number(dailyTelemetry.temp ?? station?.baseTemp ?? station?.temperature ?? 30.07);
   const rawS = Number(dailyTelemetry.sal ?? station?.baseSalinity ?? station?.salinity ?? 35.03);
   const rawV = Number(dailyTelemetry.speed ?? station?.baseSpeed ?? station?.current_speed ?? 0.138);
+  const rawChl = Number(dailyTelemetry.chl ?? station?.chlorophyll ?? station?.baseChlorophyll ?? 1.45);
 
   const depthNum = Number(selectedDepth || 0.49);
   const adj = getDepthAdjustedValues(rawT, rawS, rawV, depthNum);
@@ -103,10 +106,16 @@ export default function DataPanel({
   const modelDensity = +(1000 + 0.805 * (+baseSal) - 0.0065 * Math.pow((+baseTemp) - 4, 2) + 0.0045 * depthNum).toFixed(2);
   const insituDensity = +(1000 + 0.805 * (+insituSal) - 0.0065 * Math.pow((+insituTemp) - 4, 2) + 0.0045 * depthNum).toFixed(2);
 
+  // Bio-optical Chlorophyll-a concentration (Subsurface maximum or mixed layer)
+  const depthChl = +(Math.max(0.05, rawChl * Math.exp(-depthNum / 160.0))).toFixed(2);
+  const modelChl = depthChl;
+  const insituChl = +(Math.max(0.04, depthChl - 0.05)).toFixed(2);
+
   const displayTemp = isModel ? modelTemp : insituTemp;
   const displaySal = isModel ? modelSal : insituSal;
   const displaySpeed = isModel ? modelSpeed : insituSpeed;
   const displayDensity = isModel ? modelDensity.toFixed(2) : insituDensity.toFixed(2);
+  const displayChl = isModel ? modelChl : insituChl;
 
   // Synchronized UTC time string matching mockup: 2026-06-19 - 12:00 AM UTC (00:00)
   const hourStr = String(Math.floor(currentTimeHour || 0)).padStart(2, '0');
@@ -140,6 +149,7 @@ export default function DataPanel({
     if (primaryVariable === 'so') surfVal = adj.sal;
     else if (primaryVariable === 'current_speed' || primaryVariable === 'uo') surfVal = adj.speed;
     else if (primaryVariable === 'density') surfVal = mDens;
+    else if (primaryVariable === 'chlorophyll') surfVal = Number(val?.chl ?? rawChl);
 
     return {
       index: i,
@@ -175,6 +185,10 @@ export default function DataPanel({
     } else if (primaryVariable === 'density') {
       modelVal = mDens;
       buoyVal = bDens;
+    } else if (primaryVariable === 'chlorophyll') {
+      const dayChl = Number(val?.chl ?? rawChl);
+      modelVal = +(Math.max(0.05, dayChl * Math.exp(-depthNum / 160.0))).toFixed(2);
+      buoyVal = +(Math.max(0.04, modelVal - 0.05)).toFixed(2);
     }
 
     return {
@@ -218,6 +232,14 @@ export default function DataPanel({
         unit: 'kg/m³',
         color: '#e879f9',
         layerBadge: `Layer: ${depthNum.toFixed(2)}m (Density)`
+      };
+    }
+    if (primaryVariable === 'chlorophyll') {
+      return {
+        title: 'Chlorophyll-a (mg/m³) — 7-Day Trend',
+        unit: 'mg/m³',
+        color: '#10b981',
+        layerBadge: `Layer: ${depthNum.toFixed(2)}m (Bio-Optical)`
       };
     }
     return {
@@ -355,6 +377,13 @@ export default function DataPanel({
               {isModel ? 'Model Density:' : 'Buoy Density:'}
             </span>
             <span className="text-fuchsia-300 font-bold">{displayDensity} kg/m³</span>
+          </div>
+
+          <div className={`flex justify-between items-center py-0.5 px-1 rounded transition-all ${primaryVariable === 'chlorophyll' ? 'bg-emerald-950/50 border border-emerald-500/30' : ''}`}>
+            <span className={`font-sans ${primaryVariable === 'chlorophyll' ? 'text-emerald-300 font-bold' : 'text-slate-300'}`}>
+              {isModel ? 'Model Chlorophyll:' : 'Sensor Chlorophyll:'}
+            </span>
+            <span className="text-emerald-400 font-bold">{displayChl} mg/m³</span>
           </div>
 
           <div className="flex justify-between items-center py-0.5">
