@@ -571,7 +571,7 @@ export default function OceanAIAgent({
     if (q.includes('hello') || q.includes('hi') || q.includes('hey') || q.includes('namaste') || q.includes('who are you') || q.includes('kaun ho') || q.includes('help') || q.includes('kya kar sakte ho')) {
       return {
         answer:
-          `### Hello! I am Samudra Copilot — Your Oceanographic AI Specialist\n\n` +
+          `### Hello! I am Varuni — Your Oceanographic AI Specialist\n\n` +
           `I am actively analyzing telemetry for **${stName} (${stRegion})**.\n\n` +
           `📍 **Current Live Parameters**:\n` +
           `• **Temperature**: **${tempVal}°C** | **Salinity**: **${salVal} PSU** | **Depth**: **${depthVal}m**\n` +
@@ -813,7 +813,7 @@ export default function OceanAIAgent({
                 {isAgent && (
                   <div className="flex items-center gap-1 text-[10px] font-bold text-sky-400 mb-1">
                     <Bot className="h-3 w-3" />
-                    <span>Samudra Copilot</span>
+                    <span>Varuni</span>
                     <span className="text-slate-400 font-normal ml-auto font-mono text-[9px]">
                       {msg.timestamp}
                     </span>

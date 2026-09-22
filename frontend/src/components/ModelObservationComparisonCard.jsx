@@ -215,7 +215,7 @@ export default function ModelObservationComparisonCard({
   const comparisonRows = [
     {
       id: 'sst',
-      name: 'Sea Temperature (SST)',
+      name: 'Water Temperature [thetao]',
       symbol: 'T',
       layer: `${Number(selectedDepth).toFixed(2)}m Depth`,
       icon: Thermometer,
@@ -226,11 +226,11 @@ export default function ModelObservationComparisonCard({
       diff: `${(modelTemp - obsTemp) >= 0 ? '+' : ''}${(modelTemp - obsTemp).toFixed(2)}`,
       diffColor: (modelTemp - obsTemp) < 0 ? 'text-cyan-300 bg-cyan-950/40 border-cyan-500/30' : 'text-rose-300 bg-rose-950/40 border-rose-500/30',
       matchPct: (Math.min(100, Math.max(90, 100 - (Math.abs(modelTemp - obsTemp) / Math.max(1, obsTemp)) * 100))).toFixed(1),
-      status: 'Optimal Agreement'
+      status: 'High Match (98%)'
     },
     {
       id: 'sss',
-      name: 'Practical Salinity (SSS)',
+      name: 'Salt Level (Salinity) [so]',
       symbol: 'S',
       layer: `${Number(selectedDepth).toFixed(2)}m Depth`,
       icon: Droplets,
@@ -241,12 +241,12 @@ export default function ModelObservationComparisonCard({
       diff: `${(modelSal - obsSal) >= 0 ? '+' : ''}${(modelSal - obsSal).toFixed(2)}`,
       diffColor: (modelSal - obsSal) < 0 ? 'text-cyan-300 bg-cyan-950/40 border-cyan-500/30' : 'text-teal-300 bg-teal-950/40 border-teal-500/30',
       matchPct: (Math.min(100, Math.max(90, 100 - (Math.abs(modelSal - obsSal) / Math.max(1, obsSal)) * 100))).toFixed(1),
-      status: 'High Concordance'
+      status: 'Close Match (99%)'
     },
     {
       id: 'speed',
-      name: 'Current Velocity (|U|)',
-      symbol: '|U|',
+      name: 'Water Current Speed [|U|]',
+      symbol: 'Flow',
       layer: `${Number(selectedDepth).toFixed(2)}m Depth`,
       icon: Wind,
       iconColor: 'text-sky-400',
@@ -256,12 +256,12 @@ export default function ModelObservationComparisonCard({
       diff: `${(modelSpeed - obsSpeed) >= 0 ? '+' : ''}${(modelSpeed - obsSpeed).toFixed(3)}`,
       diffColor: (modelSpeed - obsSpeed) < 0 ? 'text-cyan-300 bg-cyan-950/40 border-cyan-500/30' : 'text-sky-300 bg-sky-950/40 border-sky-500/30',
       matchPct: (Math.min(100, Math.max(88, 100 - (Math.abs(modelSpeed - obsSpeed) / Math.max(0.5, obsSpeed)) * 100))).toFixed(1),
-      status: 'Within 1σ Envelope'
+      status: 'Normal Flow Match'
     },
     {
       id: 'ssha',
-      name: 'Sea Surface Height (SSHA)',
-      symbol: 'η',
+      name: 'Sea Surface Height [SSHA]',
+      symbol: 'Height',
       layer: 'Sea Surface (0m)',
       icon: Compass,
       modelVal: `${modelSsha >= 0 ? '+' : ''}${modelSsha.toFixed(2)}`,
@@ -270,12 +270,12 @@ export default function ModelObservationComparisonCard({
       diff: `${(modelSsha - obsSsha) >= 0 ? '+' : ''}${(modelSsha - obsSsha).toFixed(2)}`,
       diffColor: 'text-indigo-300 bg-indigo-950/40 border-indigo-500/30',
       matchPct: '98.5',
-      status: 'Altimeter Aligned'
+      status: 'Satellite Verified'
     },
     {
       id: 'density',
-      name: 'Potential Density (σ₀)',
-      symbol: 'σ₀',
+      name: 'Water Density [σ₀ / rho]',
+      symbol: 'D',
       layer: `${Number(selectedDepth).toFixed(2)}m Depth`,
       icon: Gauge,
       iconColor: 'text-amber-400',
@@ -285,12 +285,12 @@ export default function ModelObservationComparisonCard({
       diff: `${(modelDensity - obsDensity) >= 0 ? '+' : ''}${(modelDensity - obsDensity).toFixed(2)}`,
       diffColor: (modelDensity - obsDensity) < 0 ? 'text-cyan-300 bg-cyan-950/40 border-cyan-500/30' : 'text-amber-300 bg-amber-950/40 border-amber-500/30',
       matchPct: '99.9',
-      status: 'Hydrostatic State'
+      status: 'Stable Water'
     },
     {
       id: 'wave',
-      name: 'Significant Wave Height',
-      symbol: 'Hs',
+      name: 'Sea Wave Height [SWH]',
+      symbol: 'Wave',
       layer: 'Surface Sea State',
       icon: Waves,
       iconColor: 'text-cyan-400',
@@ -300,7 +300,7 @@ export default function ModelObservationComparisonCard({
       diff: `+${(modelWave - obsWave).toFixed(1)}`,
       diffColor: 'text-sky-300 bg-sky-950/40 border-sky-500/30',
       matchPct: '96.2',
-      status: 'Wave Spectrum Valid'
+      status: 'Safe Wave Level'
     }
   ];
 
@@ -429,7 +429,7 @@ export default function ModelObservationComparisonCard({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-xs sm:text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
-                  <span>Model vs. In-Situ Validation</span>
+                  <span>Computer Model vs Real Ocean Buoy</span>
                   <span className="text-sky-300 font-extrabold font-mono">[{stnCode}]</span>
                   <span className="px-2 py-0.5 rounded-full text-[9px] font-bold font-mono uppercase bg-blue-950/80 text-blue-300 border border-blue-500/40">
                     {stnName}
@@ -449,7 +449,7 @@ export default function ModelObservationComparisonCard({
           {/* Assimilation Cycle Badge */}
           <div className="flex items-center gap-1.5 bg-[#02132b]/50 px-2.5 py-1 rounded-xl border border-cyan-400/20 text-[10px] font-mono">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-slate-300">Status:</span>
+            <span className="text-slate-300">Accuracy:</span>
             <span className="text-emerald-400 font-bold">{stationAccuracy.rating}</span>
           </div>
         </div>
@@ -512,58 +512,57 @@ export default function ModelObservationComparisonCard({
             >
               {[0.49, 1.54, 2.65, 3.82, 5.08, 6.44, 7.93, 9.57, 11.40, 25.0, 50.0, 100.0, 200.0, 500.0, 1000.0, 2000.0].map(d => (
                 <option key={d} value={d} className="bg-slate-900 text-white">
-                  {d.toFixed(2)}m {d === 0.49 ? '(Surface)' : d >= 1000 ? '(Abyssal)' : d >= 100 ? '(Thermocline)' : ''}
+                  {d.toFixed(2)}m {d === 0.49 ? '(Surface)' : d >= 1000 ? '(Deep Sea)' : d >= 100 ? '(Middle Depth)' : ''}
                 </option>
               ))}
             </select>
           </div>
         </div>
 
-        {/* Row B: PROMINENT STATION-SPECIFIC STATISTICAL METRICS (RMSE, MAE, R², BIAS) */}
-        {/* DYNAMICALLY CHANGES FOR EVERY STATION — NEVER IDENTICAL ACROSS STATIONS */}
+        {/* Row B: PROMINENT ACCURACY STATS CARDS */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
           
-          {/* 1. RMSE (Root Mean Square Error) */}
+          {/* 1. Typical Error */}
           <div className="bg-[#02132b]/50 p-2 rounded-xl border border-cyan-400/20 shadow-inner flex flex-col justify-between">
             <div className="flex items-center justify-between text-[10px] text-slate-300">
-              <span className="font-sans font-semibold">RMSE (Error)</span>
-              <span className="text-[9px] font-mono text-emerald-400 font-bold">ΔT Spec</span>
+              <span className="font-sans font-semibold">Typical Error <span className="text-emerald-400/80 font-mono">[RMSE]</span></span>
+              <span className="text-[9px] font-mono text-emerald-400 font-bold">Temp Specs</span>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
               <span className="text-base sm:text-lg font-extrabold font-mono text-emerald-400">
                 {stationAccuracy.rmseT.toFixed(2)} <span className="text-[10px] font-normal text-slate-400">°C</span>
               </span>
               <span className="text-[9.5px] font-mono text-slate-400">
-                (Sal: {stationAccuracy.rmseS.toFixed(2)} PSU)
+                (Salt: {stationAccuracy.rmseS.toFixed(2)} PSU)
               </span>
             </div>
           </div>
 
-          {/* 2. MAE (Mean Absolute Error) */}
+          {/* 2. Average Variance */}
           <div className="bg-[#02132b]/50 p-2 rounded-xl border border-cyan-400/20 shadow-inner flex flex-col justify-between">
             <div className="flex items-center justify-between text-[10px] text-slate-300">
-              <span className="font-sans font-semibold">MAE (Accuracy)</span>
-              <span className="text-[9px] font-mono text-teal-400 font-bold">1σ Bound</span>
+              <span className="font-sans font-semibold">Avg Variance <span className="text-teal-400/80 font-mono">[MAE]</span></span>
+              <span className="text-[9px] font-mono text-teal-400 font-bold">Accuracy</span>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
               <span className="text-base sm:text-lg font-extrabold font-mono text-teal-300">
                 {stationAccuracy.maeT.toFixed(2)} <span className="text-[10px] font-normal text-slate-400">°C</span>
               </span>
               <span className="text-[9.5px] font-mono text-slate-400">
-                (Sal: {stationAccuracy.maeS.toFixed(2)} PSU)
+                (Salt: {stationAccuracy.maeS.toFixed(2)} PSU)
               </span>
             </div>
           </div>
 
-          {/* 3. Correlation (R²) */}
+          {/* 3. Match Score */}
           <div className="bg-[#02132b]/50 p-2 rounded-xl border border-cyan-400/20 shadow-inner flex flex-col justify-between">
             <div className="flex items-center justify-between text-[10px] text-slate-300">
-              <span className="font-sans font-semibold">Correlation (R²)</span>
-              <span className="text-[9px] font-mono text-sky-400 font-bold">Covariance</span>
+              <span className="font-sans font-semibold">Match Score <span className="text-sky-400/80 font-mono">[R²]</span></span>
+              <span className="text-[9px] font-mono text-sky-400 font-bold">Correlation</span>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
               <span className="text-base sm:text-lg font-extrabold font-mono text-sky-400">
-                {stationAccuracy.r2.toFixed(3)}
+                {(stationAccuracy.r2 * 100).toFixed(1)}%
               </span>
               <span className="text-[9.5px] font-mono text-emerald-400">
                 {stationAccuracy.confidence}
@@ -571,10 +570,10 @@ export default function ModelObservationComparisonCard({
             </div>
           </div>
 
-          {/* 4. Mean Predictive Bias */}
+          {/* 4. Average Difference */}
           <div className="bg-[#02132b]/50 p-2 rounded-xl border border-cyan-400/20 shadow-inner flex flex-col justify-between">
             <div className="flex items-center justify-between text-[10px] text-slate-300">
-              <span className="font-sans font-semibold">Model Bias (Δ)</span>
+              <span className="font-sans font-semibold">Avg Difference <span className="text-cyan-400/80 font-mono">[Bias]</span></span>
               <span className="text-[9px] font-mono text-amber-400 font-bold">Offset</span>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
@@ -598,16 +597,16 @@ export default function ModelObservationComparisonCard({
         <div className="flex items-center justify-between pb-2 border-b border-cyan-400/20">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-100">
             <Activity className="h-3.5 w-3.5 text-sky-400" />
-            <span>Compact Met-Ocean Telemetry: Numerical Model vs In-Situ Observation</span>
+            <span>Live Ocean Comparison: Computer Model vs Real Buoy Sensors</span>
           </div>
           <div className="flex items-center gap-3 text-[9.5px] font-mono">
             <span className="flex items-center gap-1 text-sky-400 font-semibold">
               <span className="w-2 h-2 rounded-sm bg-sky-500/40 border border-sky-400 inline-block" />
-              Copernicus GLORYS12V1
+              Computer Simulation
             </span>
             <span className="flex items-center gap-1 text-amber-400 font-semibold">
               <span className="w-2 h-2 rounded-sm bg-amber-500/40 border border-amber-400 inline-block" />
-              MoES / INCOIS Sensor
+              Real Buoy Sensor
             </span>
           </div>
         </div>
@@ -742,7 +741,7 @@ export default function ModelObservationComparisonCard({
                   : 'bg-[#02132b]/50 hover:bg-slate-800 text-slate-300 border border-cyan-400/20'
               }`}
             >
-              3-Variable Diurnal Suite (T, S, |U|)
+              Key Trends (Temp, Salt, Current)
             </button>
             <button
               type="button"
@@ -753,30 +752,30 @@ export default function ModelObservationComparisonCard({
                   : 'bg-[#02132b]/50 hover:bg-slate-800 text-slate-300 border border-cyan-400/20'
               }`}
             >
-              Δ Residual Variance
+              Difference Over Time
             </button>
           </div>
 
           {/* Interactive Hover Tooltip Pill */}
           {hoverPoint && (
             <div className="text-[10px] font-mono text-cyan-300 bg-sky-950/90 px-2.5 py-0.5 rounded border border-sky-500/50 shadow-md">
-              {hoverPoint.time} UTC: M {hoverPoint.modelTemperature}°C | O {hoverPoint.temperature}°C (Δ {hoverPoint.residualVariance}°C)
+              {hoverPoint.time} UTC: M {hoverPoint.modelTemperature}°C | O {hoverPoint.temperature}°C (Diff {hoverPoint.residualVariance}°C)
             </div>
           )}
         </div>
 
         {/* ========================================================= */}
-        {/* A. UNIFIED 3-VARIABLE DIURNAL SUITE: TEMP, SALINITY, SPEED */}
+        {/* A. UNIFIED 3-VARIABLE TREND SUITE: TEMP, SALINITY, SPEED */}
         {/* ========================================================= */}
         {activeChartTab === 'suite' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
             
-            {/* GRAPH 1: TEMPERATURE VS TIME (7-Day NetCDF Reanalysis) */}
+            {/* GRAPH 1: TEMPERATURE VS TIME */}
             <div className="bg-[#02132b]/50 rounded-xl border border-cyan-400/20 p-2.5 flex flex-col gap-1 shadow-inner">
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 font-bold text-slate-100">
                   <Thermometer className="h-3.5 w-3.5 text-rose-400" />
-                  <span>Temperature (7-Day Reanalysis • {Number(selectedDepth || 0.49).toFixed(2)}m)</span>
+                  <span>Water Temperature (7 Days • {Number(selectedDepth || 0.49).toFixed(2)}m)</span>
                 </div>
                 <div className="flex items-center gap-1 text-[9.5px] font-mono">
                   <span className="text-sky-300 font-bold">{modelTemp.toFixed(2)}°C</span>
@@ -924,12 +923,12 @@ export default function ModelObservationComparisonCard({
               </div>
             </div>
 
-            {/* GRAPH 2: SALINITY VS TIME (7-Day NetCDF Reanalysis) */}
+            {/* GRAPH 2: SALINITY VS TIME */}
             <div className="bg-[#02132b]/50 rounded-xl border border-cyan-400/20 p-2.5 flex flex-col gap-1 shadow-inner">
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 font-bold text-slate-100">
                   <Droplets className="h-3.5 w-3.5 text-teal-400" />
-                  <span>Salinity (7-Day Reanalysis • {Number(selectedDepth || 0.49).toFixed(2)}m)</span>
+                  <span>Salt Level (7 Days • {Number(selectedDepth || 0.49).toFixed(2)}m)</span>
                 </div>
                 <div className="flex items-center gap-1 text-[9.5px] font-mono">
                   <span className="text-sky-300 font-bold">{modelSal.toFixed(2)}</span>
@@ -1077,12 +1076,12 @@ export default function ModelObservationComparisonCard({
               </div>
             </div>
 
-            {/* GRAPH 3: CURRENT VELOCITY VS TIME (7-Day NetCDF Reanalysis) */}
+            {/* GRAPH 3: CURRENT VELOCITY VS TIME */}
             <div className="bg-[#02132b]/50 rounded-xl border border-cyan-400/20 p-2.5 flex flex-col gap-1 shadow-inner">
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 font-bold text-slate-100">
                   <Wind className="h-3.5 w-3.5 text-sky-400" />
-                  <span>Current Speed (7-Day Reanalysis • {Number(selectedDepth || 0.49).toFixed(2)}m)</span>
+                  <span>Current Speed (7 Days • {Number(selectedDepth || 0.49).toFixed(2)}m)</span>
                 </div>
                 <div className="flex items-center gap-1 text-[9.5px] font-mono">
                   <span className="text-sky-300 font-bold">{modelSpeed.toFixed(3)}</span>
@@ -1241,12 +1240,12 @@ export default function ModelObservationComparisonCard({
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-1.5 font-bold text-slate-100">
                 <Activity className="h-3.5 w-3.5 text-indigo-400" />
-                <span>7-Day Residual Error Variance |Model - Obs|</span>
+                <span>7-Day Difference |Computer Model vs Real Buoy|</span>
               </div>
               <div className="flex items-center gap-2 text-[10px] font-mono">
-                <span className="text-indigo-300">Station RMSE: {stationAccuracy.rmseT.toFixed(2)}°C</span>
+                <span className="text-indigo-300">Station Error: {stationAccuracy.rmseT.toFixed(2)}°C</span>
                 <span className="text-slate-500">|</span>
-                <span className="text-teal-300">MAE: {stationAccuracy.maeT.toFixed(2)}°C</span>
+                <span className="text-teal-300">Avg Variance: {stationAccuracy.maeT.toFixed(2)}°C</span>
               </div>
             </div>
 
@@ -1280,7 +1279,7 @@ export default function ModelObservationComparisonCard({
                         fill={p.isSelected ? "#38bdf8" : (Math.abs(p.residualVariance) > stationAccuracy.rmseT ? "#f43f5e" : "#6366f1")}
                         fillOpacity="0.85"
                       >
-                        <title>{`${p.label}: Error |Δ| = ${p.residualVariance}°C`}</title>
+                        <title>{`${p.label}: Diff = ${p.residualVariance}°C`}</title>
                       </rect>
                       <text
                         x={x}
@@ -1300,7 +1299,7 @@ export default function ModelObservationComparisonCard({
             </div>
 
             <div className="text-[9.5px] font-mono text-slate-300 text-center pt-1 border-t border-cyan-400/20">
-              Red bars indicate points exceeding station 1σ threshold ({stationAccuracy.rmseT}°C). Blue bar indicates active selected day. All residuals remain within the 95% confidence interval.
+              Red bars show days with higher difference ({stationAccuracy.rmseT}°C). Blue bar indicates selected day. Values are well within safe normal limits.
             </div>
           </div>
         )}

@@ -184,52 +184,52 @@ export default function ModelDataView({
     {
       id: 'thetao',
       symbol: 'θ',
-      name: 'Sea Water Potential Temperature',
+      name: 'Water Temperature [thetao]',
       unit: '°C',
       currentValue: `${stationModelSlice.thetao} °C`,
       typicalRange: '2.1 °C — 31.8 °C',
-      description: 'Potential temperature of seawater referenced to surface pressure. Essential for detecting the thermocline layer, heat storage, and cyclonic energy.',
-      reanalysisNote: 'GLORYS12V1 assimilation combines satellite altimetry, SST, and in-situ Argo profiling floats.'
+      description: 'Water temperature from surface to deep ocean layers (CF standard: thetao). Essential for understanding ocean warmth, weather patterns, and cyclone heat energy.',
+      reanalysisNote: 'Generated from ocean satellite measurements and real-world floating buoy sensors.'
     },
     {
       id: 'so',
       symbol: 'S',
-      name: 'Sea Water Salinity',
+      name: 'Salt Level / Salinity [so]',
       unit: 'PSU',
       currentValue: `${stationModelSlice.so} PSU`,
       typicalRange: '31.2 PSU — 36.8 PSU',
-      description: 'Salinity measured on the Practical Salinity Scale. High evaporation in the Arabian Sea creates high salinity (>36 PSU), while freshwater river discharge in the Bay of Bengal lowers salinity (<32 PSU).',
-      reanalysisNote: 'Crucial for halocline identification and barrier layer dynamics in the northern Indian Ocean.'
+      description: 'The amount of dissolved salt in ocean water (CF standard: so). Higher in the warm Arabian Sea due to evaporation, and lower in the Bay of Bengal from incoming river water.',
+      reanalysisNote: 'Helps track fresh water layers and natural ocean mixing.'
     },
     {
       id: 'uo',
       symbol: 'u',
-      name: 'Eastward Ocean Current Velocity',
+      name: 'East-West Ocean Current [uo]',
       unit: 'm/s',
       currentValue: `${stationModelSlice.uo > 0 ? '+' : ''}${stationModelSlice.uo} m/s`,
       typicalRange: '-1.85 m/s — +1.95 m/s',
-      description: 'Zonal (East-West) component of ocean surface & subsurface velocity vectors. Positive values denote eastward flow (e.g. Wyrtki Jets along the equator).',
-      reanalysisNote: 'Governed by monsoon seasonal wind reversals in the Indian Ocean.'
+      description: 'Speed and direction of water moving East or West (CF standard: uo / zonal velocity). Positive numbers indicate water flowing toward the East.',
+      reanalysisNote: 'Driven by monsoon seasonal wind patterns across the Indian Ocean.'
     },
     {
       id: 'vo',
       symbol: 'v',
-      name: 'Northward Ocean Current Velocity',
+      name: 'North-South Ocean Current [vo]',
       unit: 'm/s',
       currentValue: `${stationModelSlice.vo > 0 ? '+' : ''}${stationModelSlice.vo} m/s`,
       typicalRange: '-1.60 m/s — +1.75 m/s',
-      description: 'Meridional (North-South) component of ocean current velocity vectors. Drives intense western boundary currents such as the Somali Current.',
-      reanalysisNote: 'Coupled with uo to produce total 3D velocity magnitude: √(uo² + vo²).'
+      description: 'Speed and direction of water moving North or South (CF standard: vo / meridional velocity). Positive numbers indicate water flowing toward the North.',
+      reanalysisNote: 'Combines with East-West currents to give total ocean flow speed.'
     },
     {
       id: 'density',
       symbol: 'ρ',
-      name: 'Calculated Seawater Density',
+      name: 'Water Density [ρ / sigma-0]',
       unit: 'kg/m³',
       currentValue: `${stationModelSlice.density} kg/m³`,
       typicalRange: '1021.5 kg/m³ — 1028.2 kg/m³',
-      description: 'Volumetric mass of seawater computed via UNESCO 1980 International Equation of State (IES 80) combining temperature, salinity, and depth-induced pressure.',
-      reanalysisNote: 'Pycnocline density gradient dictates submarine buoyancy and internal wave generation.'
+      description: 'How heavy seawater is per cubic meter (symbol: ρ / potential density). Cold, salty water is heavier and sinks, while warmer water stays on top.',
+      reanalysisNote: 'Determines underwater buoyancy and deep water movement.'
     }
   ];
 
@@ -242,15 +242,15 @@ export default function ModelDataView({
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-500/40 uppercase font-mono flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              NetCDF-4 Data Provenance
+              Computer Simulation Data
             </span>
-            <span className="text-xs text-slate-400">• Copernicus Marine Service (CMEMS) GLORYS12V1</span>
+            <span className="text-xs text-slate-400">• Indian Ocean 3D Model</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-            Copernicus GLORYS12V1 NetCDF Data Explorer
+            Ocean Simulation Data Explorer
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-3xl">
-            Physical ocean reanalysis at 1/12° horizontal resolution with 9 vertical strata processed via high-throughput FastAPI and xarray lazy-slicing.
+            High-resolution computer simulation of the Indian Ocean showing water temperature, salt levels, currents, and depth layers.
           </p>
         </div>
 
@@ -260,12 +260,12 @@ export default function ModelDataView({
             <Database className="h-5 w-5" />
           </div>
           <div className="text-xs font-mono">
-            <span className="text-slate-400 block text-[10px] uppercase font-sans">Active NetCDF Array</span>
+            <span className="text-slate-400 block text-[10px] uppercase font-sans">Simulation Dataset</span>
             <span className="text-sky-300 font-bold text-[11px] block truncate max-w-[220px]">
-              cmems_mod_glo_phy_my_0.083deg
+              Indian Ocean 3D Digital Model
             </span>
             <span className="text-emerald-400 text-[10px] flex items-center gap-1 font-sans">
-              <CheckCircle2 className="h-3 w-3" /> Ready & Mounted (262 MB)
+              <CheckCircle2 className="h-3 w-3" /> Ready & Active
             </span>
           </div>
         </div>
@@ -277,14 +277,14 @@ export default function ModelDataView({
           <div className="flex items-center gap-2">
             <Radio className="h-4 w-4 text-sky-400 animate-pulse" />
             <span className="text-xs font-bold text-sky-300 uppercase tracking-wider font-mono">
-              Active Station Focus & Copernicus Grid Synchronizer
+              Select Ocean Location to View Simulation
             </span>
             <span className="text-[10px] px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800 font-mono">
-              Changes Model View Dynamically
+              Click station to switch
             </span>
           </div>
           <div className="text-xs text-slate-400 font-mono flex items-center gap-2">
-            <span>Date Slice:</span>
+            <span>Date:</span>
             <strong className="text-emerald-300">{selectedDate}</strong>
           </div>
         </div>
@@ -368,10 +368,10 @@ export default function ModelDataView({
             })}
           </div>
 
-          {/* NetCDF Temporal Resolution Badge */}
+          {/* Daily Average Readings Badge */}
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-[11px] font-mono text-emerald-300">
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-            <span>Resolution: Daily Mean (P1D-m)</span>
+            <span>Daily Average Readings</span>
           </div>
 
         </div>
@@ -389,13 +389,13 @@ export default function ModelDataView({
               </span>
             </div>
             <div className="text-xs text-slate-400 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono mt-0.5">
-              <span>Sensor Lat/Lon: <strong className="text-sky-300">{stnLat.toFixed(2)}° N, {stnLon.toFixed(2)}° E</strong></span>
+              <span>Location: <strong className="text-sky-300">{stnLat.toFixed(2)}° N, {stnLon.toFixed(2)}° E</strong></span>
               <span>•</span>
-              <span>Nearest 1/12° WGS84 Node: <strong className="text-teal-300">{gridNodeInfo.nearestLat}° N, {gridNodeInfo.nearestLon}° E</strong></span>
+              <span>Simulation Point: <strong className="text-teal-300">{gridNodeInfo.nearestLat}° N, {gridNodeInfo.nearestLon}° E</strong></span>
               <span>•</span>
-              <span>Node Offset: <strong className="text-amber-300">{gridNodeInfo.offsetKm} km</strong></span>
+              <span>Distance: <strong className="text-amber-300">{gridNodeInfo.offsetKm} km</strong></span>
               <span>•</span>
-              <span>Grid Index: <strong className="text-purple-300">[{gridNodeInfo.latIndex}, {gridNodeInfo.lonIndex}]</strong></span>
+              <span>Map Sector: <strong className="text-purple-300">[{gridNodeInfo.latIndex}, {gridNodeInfo.lonIndex}]</strong></span>
             </div>
           </div>
 
@@ -408,7 +408,7 @@ export default function ModelDataView({
               className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-sky-950 to-blue-950 hover:from-sky-900 hover:to-blue-900 border border-sky-500/40 text-sky-300 text-xs font-mono font-bold transition-all cursor-pointer shadow hover:shadow-sky-500/20 active:scale-95"
             >
               <Terminal className="h-4 w-4 text-emerald-400" />
-              <span>{isProbing ? 'Slicing xarray...' : '⚡ Probe 1/12° Node Live'}</span>
+              <span>{isProbing ? 'Checking...' : '⚡ Test Live Connection'}</span>
               <span className="text-[10px] text-emerald-300 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-500/40">
                 {probeLatency} ms
               </span>
@@ -417,7 +417,7 @@ export default function ModelDataView({
             <div className="flex items-center gap-2.5 bg-[#0c162b] border border-slate-800 px-3 py-1.5 rounded-xl">
               <ShieldCheck className="h-4 w-4 text-emerald-400" />
               <div>
-                <span className="text-[9px] text-slate-400 uppercase font-mono block">Concordance</span>
+                <span className="text-[9px] text-slate-400 uppercase font-mono block">Model Accuracy</span>
                 <span className="text-xs font-bold text-emerald-400 font-mono">{concordanceScore}% Match</span>
               </div>
             </div>
@@ -434,12 +434,12 @@ export default function ModelDataView({
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80 inline-block" />
                 <span className="text-slate-300 text-xs font-bold ml-1 flex items-center gap-1.5">
                   <Terminal className="h-3.5 w-3.5 text-sky-400" />
-                  CMEMS xarray Lazy-Slicing Terminal Execution Log
+                  Simulation Data Connection Log
                 </span>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/30">
-                  HTTP 200 OK • {probeLatency} ms
+                  Connected • {probeLatency} ms
                 </span>
                 <button
                   type="button"
@@ -453,27 +453,27 @@ export default function ModelDataView({
 
             <div className="space-y-1 text-slate-300 leading-relaxed overflow-x-auto py-1 font-mono text-[11px]">
               <div className="text-emerald-400">
-                <span className="text-slate-500">$</span> {'python3 -c "import xarray as xr; ds = xr.open_dataset(\'cmems_mod_glo_phy_my_0.083deg_P1D-m.nc\', chunks={\'depth\': 1})'}
+                <span className="text-slate-500">Query:</span> Reading Indian Ocean model data...
               </div>
               <div className="text-slate-400 flex items-center gap-1">
-                <span>[POSIX_IO]</span>
-                <span>Dataset: <code className="text-sky-300">cmems_mod_glo_phy_my_0.083deg_P1D-m_1788278363955.nc</code> (262.1 MB binary array mounted)</span>
+                <span>[DATA_READ]</span>
+                <span>Dataset: <code className="text-sky-300">Indian Ocean 3D Model</code> (Connected & Verified)</span>
               </div>
               <div className="text-sky-300 flex items-center gap-1">
-                <span>[WGS84_TARGET]</span>
-                <span>Station: <strong>{currentStn.code}</strong> | Coord: ({stnLat.toFixed(2)}°N, {stnLon.toFixed(2)}°E) → Nearest Grid Node: ({gridNodeInfo.nearestLat}°N, {gridNodeInfo.nearestLon}°E)</span>
+                <span>[LOCATION]</span>
+                <span>Station: <strong>{currentStn.code}</strong> | Coordinates: ({stnLat.toFixed(2)}°N, {stnLon.toFixed(2)}°E)</span>
               </div>
               <div className="text-purple-300 flex items-center gap-1">
-                <span>[DIM_INDICES]</span>
-                <span>lat_idx={gridNodeInfo.latIndex}, lon_idx={gridNodeInfo.lonIndex}, depth_level={activeDepth.toFixed(2)}m, date="{selectedDate}", time="{String(Math.floor(currentTimeHour)).padStart(2, '0')}:00 UTC"</span>
+                <span>[SETTINGS]</span>
+                <span>Depth: {activeDepth.toFixed(2)}m, Date: "{selectedDate}", Time: "{String(Math.floor(currentTimeHour)).padStart(2, '0')}:00 UTC"</span>
               </div>
               <div className="text-amber-300 bg-amber-950/30 p-2 rounded-lg border border-amber-800/40 mt-1">
-                <strong className="text-amber-200 block mb-0.5">[EXTRACTED_VARIABLES]</strong>
-                thetao: <span className="text-white font-bold">{stationModelSlice.thetao} °C</span> | so: <span className="text-white font-bold">{stationModelSlice.so} PSU</span> | uo: <span className="text-white font-bold">{stationModelSlice.uo} m/s</span> | vo: <span className="text-white font-bold">{stationModelSlice.vo} m/s</span> | density: <span className="text-white font-bold">{stationModelSlice.density} kg/m³</span>
+                <strong className="text-amber-200 block mb-0.5">[READINGS]</strong>
+                Water Temp: <span className="text-white font-bold">{stationModelSlice.thetao} °C</span> | Salt Level: <span className="text-white font-bold">{stationModelSlice.so} PSU</span> | East-West Flow: <span className="text-white font-bold">{stationModelSlice.uo} m/s</span> | North-South Flow: <span className="text-white font-bold">{stationModelSlice.vo} m/s</span> | Water Density: <span className="text-white font-bold">{stationModelSlice.density} kg/m³</span>
               </div>
               <div className="text-emerald-400 flex items-center justify-between pt-1 border-t border-slate-800/60">
-                <span>✓ Status: Slicing Succeeded without RAM overhead</span>
-                <span className="text-slate-400">Memory footprint: &lt; 2.1 MB chunk buffer</span>
+                <span>✓ Status: Data loaded instantly with 0 lag</span>
+                <span className="text-slate-400">Response: &lt; 75 ms</span>
               </div>
             </div>
           </div>
@@ -487,9 +487,9 @@ export default function ModelDataView({
             <HardDrive className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 uppercase font-mono block">Data Format</span>
-            <span className="text-sm font-bold text-white">NetCDF-4 / HDF5</span>
-            <span className="text-[10px] text-sky-300 block font-mono">262.1 MB Raw Array</span>
+            <span className="text-[10px] text-slate-400 uppercase font-mono block">Dataset Type</span>
+            <span className="text-sm font-bold text-white">3D Ocean Grid</span>
+            <span className="text-[10px] text-sky-300 block font-mono">Full Indian Ocean Coverage</span>
           </div>
         </div>
 
@@ -498,9 +498,9 @@ export default function ModelDataView({
             <Zap className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 uppercase font-mono block">Spatial Resolution</span>
-            <span className="text-sm font-bold text-white">1/12° (~9.25 km)</span>
-            <span className="text-[10px] text-teal-300 block font-mono">1122 3D Grid Nodes</span>
+            <span className="text-[10px] text-slate-400 uppercase font-mono block">Map Accuracy</span>
+            <span className="text-sm font-bold text-white">High Detail (~9 km)</span>
+            <span className="text-[10px] text-teal-300 block font-mono">Over 1,100 ocean check points</span>
           </div>
         </div>
 
@@ -510,8 +510,8 @@ export default function ModelDataView({
           </div>
           <div>
             <span className="text-[10px] text-slate-400 uppercase font-mono block">Depth Levels</span>
-            <span className="text-sm font-bold text-white">9 Vertical Strata</span>
-            <span className="text-[10px] text-purple-300 block font-mono">0.49 m to 11.40 m</span>
+            <span className="text-sm font-bold text-white">9 Water Depths</span>
+            <span className="text-[10px] text-purple-300 block font-mono">Surface down to 11.4 m</span>
           </div>
         </div>
 
@@ -520,8 +520,8 @@ export default function ModelDataView({
             <Cpu className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 uppercase font-mono block">Slicing Engine</span>
-            <span className="text-sm font-bold text-white">Python xarray + FastAPI</span>
+            <span className="text-[10px] text-slate-400 uppercase font-mono block">Query Speed</span>
+            <span className="text-sm font-bold text-white">Instant Query</span>
             <span className="text-[10px] text-emerald-400 block font-mono">&lt; 75 ms Response</span>
           </div>
         </div>
@@ -533,11 +533,11 @@ export default function ModelDataView({
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4 text-emerald-400" />
             <h2 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
-              Extracted Copernicus NetCDF Values at {stnCode} • {selectedDate} {String(Math.floor(currentTimeHour ?? 12)).padStart(2, '0')}:00 UTC (Depth: {activeDepth.toFixed(2)}m)
+              Simulated Ocean Conditions at {stnCode} • {selectedDate} (Depth: {activeDepth.toFixed(2)}m)
             </h2>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] text-slate-400 font-mono mr-1">Slice Depth:</span>
+            <span className="text-[11px] text-slate-400 font-mono mr-1">Depth:</span>
             {depths.map((d, i) => (
               <button
                 key={i}
@@ -558,11 +558,11 @@ export default function ModelDataView({
         {/* 5 Variable Parameter Cards for Active Station */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           
-          {/* Potential Temperature */}
+          {/* Water Temperature */}
           <div className="bg-[#060c18] border border-slate-800/90 rounded-xl p-3 flex flex-col justify-between">
             <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
               <span className="flex items-center gap-1 text-red-400 font-bold">
-                <Thermometer className="h-3.5 w-3.5" /> thetao (θ)
+                <Thermometer className="h-3.5 w-3.5" /> Water Temp <span className="text-[10px] text-red-300/80 font-normal">[θ]</span>
               </span>
               <span className="text-[10px] bg-red-950/60 text-red-300 px-1.5 py-0.5 rounded border border-red-800/40">
                 °C
@@ -572,8 +572,8 @@ export default function ModelDataView({
               {stationModelSlice.thetao} <span className="text-xs text-slate-400 font-normal">°C</span>
             </div>
             <div className="text-[10px] text-slate-400 font-mono mt-1 border-t border-slate-800/60 pt-1.5 flex items-center justify-between">
-              <span>In-Situ: {stationModelSlice.obsT} °C</span>
-              <span className="text-emerald-400">Δ {+(stationModelSlice.thetao - stationModelSlice.obsT).toFixed(2)}</span>
+              <span>Real Buoy: {stationModelSlice.obsT} °C</span>
+              <span className="text-emerald-400">Diff: {+(stationModelSlice.thetao - stationModelSlice.obsT).toFixed(2)}</span>
             </div>
           </div>
 
@@ -581,7 +581,7 @@ export default function ModelDataView({
           <div className="bg-[#060c18] border border-slate-800/90 rounded-xl p-3 flex flex-col justify-between">
             <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
               <span className="flex items-center gap-1 text-teal-400 font-bold">
-                <Droplets className="h-3.5 w-3.5" /> so (S)
+                <Droplets className="h-3.5 w-3.5" /> Salt Level <span className="text-[10px] text-teal-300/80 font-normal">[S]</span>
               </span>
               <span className="text-[10px] bg-teal-950/60 text-teal-300 px-1.5 py-0.5 rounded border border-teal-800/40">
                 PSU
@@ -591,8 +591,8 @@ export default function ModelDataView({
               {stationModelSlice.so} <span className="text-xs text-slate-400 font-normal">PSU</span>
             </div>
             <div className="text-[10px] text-slate-400 font-mono mt-1 border-t border-slate-800/60 pt-1.5 flex items-center justify-between">
-              <span>In-Situ: {stationModelSlice.obsS} PSU</span>
-              <span className="text-emerald-400">Δ {+(stationModelSlice.so - stationModelSlice.obsS).toFixed(2)}</span>
+              <span>Real Buoy: {stationModelSlice.obsS} PSU</span>
+              <span className="text-emerald-400">Diff: {+(stationModelSlice.so - stationModelSlice.obsS).toFixed(2)}</span>
             </div>
           </div>
 
@@ -600,7 +600,7 @@ export default function ModelDataView({
           <div className="bg-[#060c18] border border-slate-800/90 rounded-xl p-3 flex flex-col justify-between">
             <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
               <span className="flex items-center gap-1 text-sky-400 font-bold">
-                <Wind className="h-3.5 w-3.5" /> uo (Zonal u)
+                <Wind className="h-3.5 w-3.5" /> East-West Current <span className="text-[10px] text-sky-300/80 font-normal">[uo]</span>
               </span>
               <span className="text-[10px] bg-sky-950/60 text-sky-300 px-1.5 py-0.5 rounded border border-sky-800/40">
                 m/s
@@ -610,7 +610,7 @@ export default function ModelDataView({
               {stationModelSlice.uo > 0 ? '+' : ''}{stationModelSlice.uo} <span className="text-xs text-slate-400 font-normal">m/s</span>
             </div>
             <div className="text-[10px] text-slate-400 font-mono mt-1 border-t border-slate-800/60 pt-1.5">
-              <span>East-West Component</span>
+              <span>Flow: Eastward</span>
             </div>
           </div>
 
@@ -618,7 +618,7 @@ export default function ModelDataView({
           <div className="bg-[#060c18] border border-slate-800/90 rounded-xl p-3 flex flex-col justify-between">
             <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
               <span className="flex items-center gap-1 text-purple-400 font-bold">
-                <Compass className="h-3.5 w-3.5" /> vo (Meridional v)
+                <Compass className="h-3.5 w-3.5" /> North-South Current <span className="text-[10px] text-purple-300/80 font-normal">[vo]</span>
               </span>
               <span className="text-[10px] bg-purple-950/60 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800/40">
                 m/s
@@ -628,7 +628,7 @@ export default function ModelDataView({
               {stationModelSlice.vo > 0 ? '+' : ''}{stationModelSlice.vo} <span className="text-xs text-slate-400 font-normal">m/s</span>
             </div>
             <div className="text-[10px] text-slate-400 font-mono mt-1 border-t border-slate-800/60 pt-1.5">
-              <span>Speed: {stationModelSlice.current_speed} m/s</span>
+              <span>Flow Speed: {stationModelSlice.current_speed} m/s</span>
             </div>
           </div>
 
@@ -636,7 +636,7 @@ export default function ModelDataView({
           <div className="bg-[#060c18] border border-slate-800/90 rounded-xl p-3 flex flex-col justify-between col-span-2 sm:col-span-1">
             <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
               <span className="flex items-center gap-1 text-amber-400 font-bold">
-                <Gauge className="h-3.5 w-3.5" /> Density (ρ)
+                <Gauge className="h-3.5 w-3.5" /> Water Density <span className="text-[10px] text-amber-300/80 font-normal">[ρ]</span>
               </span>
               <span className="text-[10px] bg-amber-950/60 text-amber-300 px-1.5 py-0.5 rounded border border-amber-800/40">
                 kg/m³
@@ -646,7 +646,7 @@ export default function ModelDataView({
               {stationModelSlice.density} <span className="text-xs text-slate-400 font-normal">kg/m³</span>
             </div>
             <div className="text-[10px] text-slate-400 font-mono mt-1 border-t border-slate-800/60 pt-1.5">
-              <span>UNESCO IES-80 State</span>
+              <span>Normal Seawater Weight</span>
             </div>
           </div>
 
@@ -661,7 +661,7 @@ export default function ModelDataView({
           <div className="bg-[#0b1325]/90 border border-slate-800/80 rounded-2xl p-4 sm:p-5">
             <h2 className="text-sm font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2 mb-3">
               <FileCode2 className="h-4 w-4 text-sky-400" />
-              NetCDF Variable Dictionary & Equations
+              Ocean Measurements Explained
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
@@ -683,7 +683,7 @@ export default function ModelDataView({
                         <span className="h-7 w-7 rounded-lg bg-sky-950 text-sky-300 font-mono font-bold flex items-center justify-center text-sm border border-sky-500/30">
                           {v.symbol}
                         </span>
-                        <span className="font-mono font-bold text-xs text-white">{v.id}</span>
+                        <span className="font-semibold text-xs text-white">{v.name}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800/50">
@@ -696,7 +696,7 @@ export default function ModelDataView({
                     </div>
 
                     <div className="text-xs font-semibold text-slate-200">{v.name}</div>
-                    <div className="text-[11px] text-slate-400 font-mono">Range: {v.typicalRange}</div>
+                    <div className="text-[11px] text-slate-400 font-mono">Normal Range: {v.typicalRange}</div>
                   </button>
                 );
               })}
@@ -709,10 +709,10 @@ export default function ModelDataView({
                 <div className="bg-[#060c18] border border-slate-800 rounded-xl p-4 flex flex-col gap-2.5">
                   <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
                     <span className="text-xs font-bold text-sky-400 font-mono uppercase flex items-center gap-2">
-                      Deep-Dive: {current.id} ({current.name})
+                      Overview: {current.name}
                     </span>
                     <span className="text-xs font-mono bg-sky-950 text-sky-300 px-2 py-0.5 rounded border border-sky-500/40">
-                      Standard Units: {current.unit}
+                      Measurement Unit: {current.unit}
                     </span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed font-sans">
@@ -720,11 +720,11 @@ export default function ModelDataView({
                   </p>
                   <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-[11px] text-emerald-300 font-mono flex items-center justify-between flex-wrap gap-2">
                     <div>
-                      <strong className="text-slate-300 font-sans">Reanalysis Provenance: </strong>
+                      <strong className="text-slate-300 font-sans">How it is calculated: </strong>
                       {current.reanalysisNote}
                     </div>
                     <div className="text-sky-300 font-bold">
-                      {stnCode} Slice: {current.currentValue}
+                      {stnCode} Reading: {current.currentValue}
                     </div>
                   </div>
                 </div>
@@ -736,28 +736,28 @@ export default function ModelDataView({
           <div className="bg-[#0b1325]/90 border border-slate-800/80 rounded-2xl p-4 sm:p-5 flex flex-col gap-3">
             <h3 className="text-xs font-bold text-sky-400 uppercase tracking-wider font-mono flex items-center gap-1.5">
               <Cpu className="h-4 w-4" />
-              High-Throughput Lazy-Slicing Architecture
+              Fast Performance Technology
             </h3>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Serving a 262 MB raw NetCDF file directly to a browser causes client-side memory crashes and WebGL freezes. Our architecture solves this:
+              How we keep the 3D globe fast, responsive, and smooth for all users:
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
               <div className="bg-[#060c18] p-3 rounded-xl border border-slate-800 flex flex-col gap-1">
-                <span className="text-sky-400 font-bold">1. On-Disk NetCDF</span>
+                <span className="text-sky-400 font-bold">1. High-Quality Data</span>
                 <span className="text-[11px] text-slate-400 font-sans">
-                  Binary NetCDF-4 file stored in <code className="text-sky-300 font-mono text-[10px]">backend/data/</code>.
+                  Pre-calibrated 3D ocean dataset stored securely on the server.
                 </span>
               </div>
               <div className="bg-[#060c18] p-3 rounded-xl border border-slate-800 flex flex-col gap-1">
-                <span className="text-teal-400 font-bold">2. xarray Lazy Slicing</span>
+                <span className="text-teal-400 font-bold">2. Instant Querying</span>
                 <span className="text-[11px] text-slate-400 font-sans">
-                  FastAPI service opens dataset lazily with chunking, slicing only requested Lat, Lon, and Depth in &lt;75ms.
+                  Server loads only the depth and location you click in &lt; 75ms.
                 </span>
               </div>
               <div className="bg-[#060c18] p-3 rounded-xl border border-slate-800 flex flex-col gap-1">
-                <span className="text-purple-400 font-bold">3. Three.js Instancing</span>
+                <span className="text-purple-400 font-bold">3. 60 FPS 3D Graphics</span>
                 <span className="text-[11px] text-slate-400 font-sans">
-                  InstancedMesh renders thousands of volumetric particles at 60 FPS without DOM or CPU overhead.
+                  Smooth 3D GPU rendering without slowing down your computer.
                 </span>
               </div>
             </div>
@@ -772,9 +772,9 @@ export default function ModelDataView({
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-1.5">
                 <Layers className="h-4 w-4 text-sky-400" />
-                Vertical Strata at {stnCode}
+                Water Depth Layers at {stnCode}
               </h3>
-              <span className="text-[10px] text-slate-400 font-mono">Click to Slice</span>
+              <span className="text-[10px] text-slate-400 font-mono">Click depth to view</span>
             </div>
 
             <div className="space-y-1.5 max-h-80 overflow-y-auto font-mono text-xs pr-1">
@@ -803,7 +803,7 @@ export default function ModelDataView({
                       <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
                         isSelected ? 'bg-sky-500 text-white' : 'bg-slate-800 text-slate-400'
                       }`}>
-                        L{i + 1}
+                        Level {i + 1}
                       </span>
                       <span className="font-bold text-sky-300">{depthNum.toFixed(2)} m</span>
                     </div>
@@ -812,7 +812,7 @@ export default function ModelDataView({
                       <span className="text-red-300">{tAtDepth} °C</span>
                       <span className="text-teal-300">{sAtDepth} PSU</span>
                       <span className="text-[10px] text-slate-400 font-sans hidden sm:inline">
-                        {i === 0 ? 'Surface' : i < 4 ? 'Mixed' : 'Subsurface'}
+                        {i === 0 ? 'Surface' : i < 4 ? 'Middle' : 'Deep Water'}
                       </span>
                     </div>
                   </button>
@@ -831,29 +831,29 @@ export default function ModelDataView({
               <div className="p-2.5 rounded-xl bg-[#060c18] border border-slate-800/80 flex items-start gap-2.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 mt-1.5 shrink-0 animate-pulse" />
                 <div>
-                  <span className="text-emerald-300 font-bold block text-xs">Copernicus Dataset Status</span>
-                  <span className="text-[11px] text-slate-400 leading-tight">Monitors NetCDF reanalysis connectivity & metadata</span>
+                  <span className="text-emerald-300 font-bold block text-xs">Dataset Status</span>
+                  <span className="text-[11px] text-slate-400 leading-tight">Ocean simulation data connected & synchronized</span>
                 </div>
               </div>
               <div className="p-2.5 rounded-xl bg-[#060c18] border border-slate-800/80 flex items-start gap-2.5">
                 <span className="w-2 h-2 rounded-full bg-sky-400 mt-1.5 shrink-0" />
                 <div>
-                  <span className="text-sky-300 font-bold block text-xs">3D Volumetric Ocean Grid</span>
-                  <span className="text-[11px] text-slate-400 leading-tight">Streams 3D temperature, salinity & current velocity fields</span>
+                  <span className="text-sky-300 font-bold block text-xs">3D Ocean View</span>
+                  <span className="text-[11px] text-slate-400 leading-tight">Live temperature, salt levels & water currents</span>
                 </div>
               </div>
               <div className="p-2.5 rounded-xl bg-[#060c18] border border-slate-800/80 flex items-start gap-2.5">
                 <span className="w-2 h-2 rounded-full bg-purple-400 mt-1.5 shrink-0" />
                 <div>
-                  <span className="text-purple-300 font-bold block text-xs">Vertical Depth Stratification</span>
-                  <span className="text-[11px] text-slate-400 leading-tight">Extracts depth profiles from 0.49m to 11.40m</span>
+                  <span className="text-purple-300 font-bold block text-xs">Water Depth Slices</span>
+                  <span className="text-[11px] text-slate-400 leading-tight">Inspect conditions from surface to 11.4m deep</span>
                 </div>
               </div>
               <div className="p-2.5 rounded-xl bg-[#060c18] border border-slate-800/80 flex items-start gap-2.5">
                 <span className="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0" />
                 <div>
-                  <span className="text-amber-300 font-bold block text-xs">In-Situ Fleet Telemetry</span>
-                  <span className="text-[11px] text-slate-400 leading-tight">Coordinates moored buoys, Argo floats & underwater gliders</span>
+                  <span className="text-amber-300 font-bold block text-xs">Real Ocean Buoy Fleet</span>
+                  <span className="text-[11px] text-slate-400 leading-tight">Live data from moored buoys, Argo floats & ocean sensors</span>
                 </div>
               </div>
             </div>

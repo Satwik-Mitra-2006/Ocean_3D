@@ -23,7 +23,7 @@
     color: #f1f5f9;
     overflow-x: hidden;
     position: relative;
-    background-color: #020814;
+    background-color: #070913;
   }
 
   #root {
@@ -40,20 +40,20 @@
   }
 }
 
-/* Custom scientific scrollbar */
+/* Custom scientific scrollbar - Aurora Indigo theme */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(3, 21, 44, 0.4);
+  background: rgba(10, 14, 28, 0.5);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(56, 189, 248, 0.25);
+  background: rgba(129, 140, 248, 0.3);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(56, 189, 248, 0.5);
+  background: rgba(129, 140, 248, 0.65);
 }
 
 /* Pulse animation for active observation buoys */
@@ -74,6 +74,55 @@
 
 .animate-ping-slow {
   animation: ping-slow 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Staggered Fly-In Keyframes for Telemetry Metrics from Globe to Left Display */
+@keyframes flyInFromGlobe {
+  0% {
+    opacity: 0;
+    transform: translateX(60px) translateY(-6px) scale(0.82);
+    filter: blur(5px);
+  }
+  65% {
+    opacity: 1;
+    transform: translateX(-4px) translateY(0) scale(1.03);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.animate-fly-stagger-header {
+  animation: flyInFromGlobe 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 0.05s;
+}
+
+.animate-fly-stagger-temp {
+  animation: flyInFromGlobe 0.44s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 0.18s;
+}
+
+.animate-fly-stagger-sal {
+  animation: flyInFromGlobe 0.44s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 0.32s;
+}
+
+.animate-fly-stagger-speed {
+  animation: flyInFromGlobe 0.44s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 0.46s;
+}
+
+.animate-fly-stagger-density {
+  animation: flyInFromGlobe 0.44s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 0.60s;
+}
+
+.animate-fly-stagger-footer {
+  animation: flyInFromGlobe 0.40s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 0.72s;
 }
 
 /* Subtle glassmorphism utilities */

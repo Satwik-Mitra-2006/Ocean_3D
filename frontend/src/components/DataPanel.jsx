@@ -4,7 +4,6 @@ import {
   Info,
   Download
 } from 'lucide-react';
-import OceanAIAgent from './OceanAIAgent';
 import ExportModal from './ExportModal';
 import { 
   COPERNICUS_DAILY_STATION_TELEMETRY, 
@@ -571,11 +570,6 @@ export default function DataPanel({
 
         </div>
 
-      </div>
-
-      {/* 2. OCEAN AI AGENT (CO-PILOT FOR WHAT-IF ANALYSIS) */}
-      <div className="flex-1 min-h-[360px] flex flex-col">
-        <OceanAIAgent selectedStation={station} />
       </div>
 
       {/* Quick Station Export Modal */}

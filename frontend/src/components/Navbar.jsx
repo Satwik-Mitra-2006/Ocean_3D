@@ -23,64 +23,61 @@ export default function Navbar({
   onOpenIngest,
   onOpenScienceTour,
   backendHealth, 
-  pointsCount = 0 
+  pointsCount = 0,
+  activeStation = null
 }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const isLive = Boolean(backendHealth?.dataset_available);
   const datasetId = backendHealth?.metadata?.dataset_id || 'cmems_mod_glo_phy_my_0.083deg_P1D-m';
 
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Activity },
-    { id: '3d-ocean', label: '3D Ocean', icon: Globe2 },
-    { id: 'observations', label: 'Observations', icon: Radio },
-    { id: 'model-data', label: 'Model Data', icon: Database },
-    { id: 'analysis', label: 'Analysis', icon: Layers },
-    { id: 'export-data', label: 'Download Data', icon: Download },
-  ];
+  const aspectTitles = {
+    '3d-twin': '3D Digital Twin (Globe & Subsurface)',
+    'model-studio': 'Model vs In-Situ Validation Studio',
+    'analytics': 'Depth & CTD Stratification Analytics',
+    'insitu-data': 'In-Situ Observation Fleet & Sensor Telemetry',
+    'observations': 'In-Situ Observation Fleet & Sensor Telemetry',
+    'numerical-data': 'Numerical Ocean Model (Copernicus GLORYS12V1)',
+    'download-data': 'Data Download & Export Center'
+  };
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full bg-[#020814]/10 backdrop-blur-[2px] border-b border-cyan-400/20 shadow-[0_4px_20px_rgba(0,0,0,0.3)] text-white">
-        <div className="w-full px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+      <header className="sticky top-0 z-40 w-full bg-[#090b14]/85 backdrop-blur-md border-b border-indigo-500/25 shadow-[0_4px_20px_rgba(0,0,0,0.4)] text-white">
+        <div className="w-full px-4 sm:px-6 h-14 flex items-center justify-between">
           
           {/* Left: Brand / Logo */}
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-sky-500 via-cyan-500 to-teal-400 flex items-center justify-center text-white shadow-md shadow-sky-500/25">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-500 via-violet-500 to-purple-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/25">
               <Waves className="h-5 w-5 stroke-[2.2]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-lg font-extrabold tracking-tight text-white">
-                  Ocean<span className="text-sky-400">3D</span>
+                  Ocean<span className="text-indigo-400">3D</span>
+                </span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-950/80 border border-indigo-500/30 text-indigo-300">
+                  SIH'26
                 </span>
               </div>
-              <p className="text-[11px] font-medium text-slate-400 tracking-wide">
-                Indian Ocean Visualization Platform
-              </p>
             </div>
           </div>
 
-          {/* Center: Navigation Tabs */}
-          <nav className="hidden md:flex items-center gap-1 bg-[#020814]/40 p-1 rounded-2xl border border-cyan-400/20 shadow-inner">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                    isActive
-                      ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-md shadow-sky-500/30'
-                      : 'text-slate-300 hover:text-white hover:bg-cyan-900/30'
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
+          {/* Center: Active Aspect Breadcrumb & Telemetry Badge */}
+          <div className="hidden md:flex items-center gap-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/80 border border-indigo-500/30 text-xs font-mono shadow-inner">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse shrink-0" />
+              <span className="text-indigo-300 font-bold tracking-wide">
+                {aspectTitles[activeTab] || '3D Digital Twin'}
+              </span>
+              {activeStation && (
+                <>
+                  <span className="text-slate-600">|</span>
+                  <span className="text-amber-400 font-bold">Stn: {activeStation.code || activeStation.name}</span>
+                  <span className="text-slate-400 text-[11px]">({activeStation.temperature || '30.1'}°C)</span>
+                </>
+              )}
+            </div>
+          </div>
 
           {/* Right: Connection Status & Controls */}
           <div className="flex items-center gap-2">
@@ -100,10 +97,10 @@ export default function Navbar({
             <button
               type="button"
               onClick={onOpenIngest}
-              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-500/40 text-cyan-300 text-xs font-bold transition-all shadow-sm cursor-pointer"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-950/70 hover:bg-indigo-900/80 border border-indigo-500/40 text-indigo-300 text-xs font-bold transition-all shadow-sm cursor-pointer"
               title="Upload NetCDF / CSV or Connect OPeNDAP"
             >
-              <Database className="h-3.5 w-3.5 text-cyan-400" />
+              <Database className="h-3.5 w-3.5 text-indigo-400" />
               <span>Ingest</span>
             </button>
 
@@ -116,7 +113,7 @@ export default function Navbar({
               <span>Copernicus Live Feed</span>
             </div>
 
-            <div className="h-5 w-px bg-cyan-500/20 hidden sm:block" />
+            <div className="h-5 w-px bg-indigo-500/20 hidden sm:block" />
 
             {/* Action buttons */}
             <div className="flex items-center gap-1.5">
@@ -132,7 +129,7 @@ export default function Navbar({
               <button
                 onClick={() => setIsProfileOpen(true)}
                 title="User Profile & System Specs"
-                className="h-8.5 w-8.5 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-md shadow-sky-500/25 border border-white/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                className="h-8.5 w-8.5 rounded-xl bg-gradient-to-tr from-indigo-600 via-violet-600 to-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-md shadow-indigo-500/25 border border-white/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
               >
                 <User className="h-4 w-4" />
               </button>
