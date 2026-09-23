@@ -68,6 +68,7 @@ class OceanService:
                 "v_current": -0.063,
                 "current_speed": 0.063,
                 "density": 1023.38,
+                "chlorophyll": 1.45,
                 "status": "Active",
                 "region": "Arabian Sea (Central)",
                 "source": "MoES / INCOIS National Data Buoy Programme",
@@ -86,6 +87,7 @@ class OceanService:
                 "v_current": -0.059,
                 "current_speed": 0.180,
                 "density": 1024.17,
+                "chlorophyll": 0.85,
                 "status": "Active",
                 "region": "Northern Arabian Sea",
                 "source": "INCOIS Ocean Monitoring Network",
@@ -104,6 +106,7 @@ class OceanService:
                 "v_current": -0.464,
                 "current_speed": 0.654,
                 "density": 1023.83,
+                "chlorophyll": 0.62,
                 "status": "Active",
                 "region": "South Indian Coastal Shelf",
                 "source": "International Argo Project / INCOIS",
@@ -122,6 +125,7 @@ class OceanService:
                 "v_current": -0.156,
                 "current_speed": 0.184,
                 "density": 1023.68,
+                "chlorophyll": 1.82,
                 "status": "Warning",
                 "region": "Lakshadweep Sea",
                 "source": "NIOT / MoES Coastal Observation Network",
@@ -140,6 +144,7 @@ class OceanService:
                 "v_current": 0.031,
                 "current_speed": 0.051,
                 "density": 1020.59,
+                "chlorophyll": 2.10,
                 "status": "Active",
                 "region": "Northern Bay of Bengal",
                 "source": "INCOIS Severe Weather Warning System",
@@ -436,12 +441,23 @@ class OceanService:
         density = round(1000 + 0.8 * sal_val - 0.0065 * (temp_val - 4) * (temp_val - 4), 2)
         wave_h = round(1.4 + speed * 1.6, 1)
 
+        # Biogeochemical Chlorophyll-a bio-optical model (euphotic layer SCM)
+        coastal_factor = 1.0 + 0.6 * math.exp(-((actual_lon - 74.0)**2 + (actual_lat - 12.0)**2) / 30.0) + 0.8 * math.exp(-((actual_lon - 88.0)**2 + (actual_lat - 20.0)**2) / 25.0)
+        surf_chl = max(0.15, min(3.2, 0.75 * coastal_factor))
+        if actual_depth <= 120.0:
+            scm_peak = 1.35 * surf_chl * math.exp(-((actual_depth - 35.0) ** 2) / (2 * 25.0 ** 2))
+            mixed_layer = surf_chl * math.exp(-actual_depth / 70.0)
+            chl_val = round(max(0.04, scm_peak + 0.35 * mixed_layer), 2)
+        else:
+            chl_val = round(max(0.005, 0.05 * math.exp(-(actual_depth - 120.0) / 200.0)), 3)
+
         return OceanDataResponse(
             latitude=actual_lat,
             longitude=actual_lon,
             depth=actual_depth,
             temperature=temp_val,
             salinity=sal_val,
+            chlorophyll=chl_val,
             u_current=u_val,
             v_current=v_val,
             current_speed=speed,
@@ -605,6 +621,8 @@ class OceanService:
                     v = round((0.6 * math.sin(lon * 0.3)) * decay, 3)
                     speed = round(math.sqrt(u * u + v * v), 3)
 
+                    chl_fb = round(max(0.04, 1.45 * math.exp(-depth_m / 45.0) + 0.25 * math.cos(lat * 0.2)), 2)
+
                     fallback_points.append(
                         OceanGridPoint(
                             latitude=lat,
@@ -612,6 +630,7 @@ class OceanService:
                             depth=depth_m,
                             temperature=temp,
                             salinity=sal,
+                            chlorophyll=chl_fb,
                             u_current=u,
                             v_current=v,
                             current_speed=speed,
@@ -715,10 +734,21 @@ class OceanService:
         density = round(1000 + 0.805 * s_val - 0.0065 * (t_val - 4) * (t_val - 4) + 0.0045 * req_depth, 2)
         wave_h = round(1.4 + speed * 1.6, 1)
 
+        # Bio-optical Chlorophyll-a depth profile
+        base_chl = float(st.get("chlorophyll", 1.45))
+        if req_depth <= 11.40:
+            chl_val = round(base_chl * (1.0 + 0.08 * math.sin((req_depth / 11.40) * math.pi)), 2)
+        elif req_depth <= 120.0:
+            scm = base_chl * 1.25 * math.exp(-((req_depth - 35.0) ** 2) / (2 * 25.0 ** 2))
+            chl_val = round(max(0.04, scm + base_chl * 0.35 * math.exp(-req_depth / 60.0)), 2)
+        else:
+            chl_val = round(max(0.005, 0.04 * math.exp(-(req_depth - 120.0) / 250.0)), 3)
+
         res = dict(st)
         res["depth"] = round(float(req_depth), 2)
         res["temperature"] = t_val
         res["salinity"] = s_val
+        res["chlorophyll"] = chl_val
         res["u_current"] = u_val
         res["v_current"] = v_val
         res["current_speed"] = speed
@@ -756,7 +786,7 @@ class OceanService:
                     temperature=sampled["temperature"],
                     salinity=sampled["salinity"],
                     current_speed=sampled["current_speed"],
-                    chlorophyll=sampled.get("chlorophyll", 0.85),
+                    chlorophyll=sampled.get("chlorophyll", 1.45),
                     u_current=sampled.get("u_current"),
                     v_current=sampled.get("v_current"),
                     current_direction=sampled.get("current_direction", 145.0),
@@ -801,7 +831,7 @@ class OceanService:
                     temperature=sampled["temperature"],
                     salinity=sampled["salinity"],
                     current_speed=sampled["current_speed"],
-                    chlorophyll=sampled.get("chlorophyll", 0.85),
+                    chlorophyll=sampled.get("chlorophyll", 1.45),
                     u_current=sampled.get("u_current"),
                     v_current=sampled.get("v_current"),
                     current_direction=sampled.get("current_direction", 145.0),

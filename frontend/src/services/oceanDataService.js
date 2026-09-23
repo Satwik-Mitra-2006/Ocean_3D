@@ -213,12 +213,15 @@ export const oceanDataService = {
         const v = +(0.18 * Math.cos(lon * 0.3)).toFixed(3);
         const spd = +(Math.sqrt(u * u + v * v)).toFixed(3);
 
+        const chl = +(Math.max(0.04, 1.45 * Math.exp(-(depth || 0.49) / 45.0) + Math.cos(lat * 0.2) * 0.25)).toFixed(2);
+
         points.push({
           latitude: lat,
           longitude: lon,
           depth: depth || 0.49,
           temperature: temp,
           salinity: salinity,
+          chlorophyll: chl,
           u_current: u,
           v_current: v,
           current_speed: spd
@@ -258,12 +261,14 @@ export const oceanDataService = {
     } catch (e) {
       console.warn('Could not fetch /api/ocean point:', e.message);
     }
+    const chl = +(Math.max(0.04, 1.45 * Math.exp(-depth / 45.0) + 0.3 * Math.sin(lat * 0.2))).toFixed(2);
     return {
       latitude: lat,
       longitude: lon,
       depth: depth,
       temperature: 28.5,
       salinity: 35.1,
+      chlorophyll: chl,
       u_current: 0.22,
       v_current: 0.15,
       current_speed: 0.27,

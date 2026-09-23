@@ -1,7 +1,6 @@
 import React from 'react';
 import ModelObservationComparisonCard from '../components/ModelObservationComparisonCard';
 import DataPanel from '../components/DataPanel';
-import DataCharts from '../components/DataCharts';
 import { 
   Sparkles, 
   Activity, 
@@ -50,14 +49,14 @@ export default function ModelStudioView({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
-                Computer Model vs Real Buoy Comparison
+                Model vs In-Situ Validation
               </h2>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-950/80 border border-indigo-500/40 text-indigo-300 font-bold">
-                ACCURACY BENCHMARK
+                BENCHMARK
               </span>
             </div>
             <p className="text-xs text-slate-400 font-medium">
-              Comparing computer ocean simulations with real-time ocean buoy and sensor measurements.
+              Real-time sensor verification against numerical model.
             </p>
           </div>
         </div>
@@ -66,25 +65,25 @@ export default function ModelStudioView({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full lg:w-auto">
           <div className="px-3 py-1.5 rounded-xl bg-slate-950/80 border border-indigo-500/30 text-center">
             <span className="text-[10px] font-mono text-slate-400 block uppercase">
-              Avg Difference <span className="text-indigo-400/80 lowercase">[bias ΔT]</span>
+              Bias <span className="text-indigo-400/80">[ΔT]</span>
             </span>
             <span className="text-sm font-extrabold text-indigo-300 font-mono">-0.26°C</span>
           </div>
           <div className="px-3 py-1.5 rounded-xl bg-slate-950/80 border border-emerald-500/30 text-center">
             <span className="text-[10px] font-mono text-slate-400 block uppercase">
-              Average Error <span className="text-emerald-400/80 lowercase">[rmse]</span>
+              Error <span className="text-emerald-400/80">[RMSE]</span>
             </span>
             <span className="text-sm font-extrabold text-emerald-300 font-mono">0.35°C</span>
           </div>
           <div className="px-3 py-1.5 rounded-xl bg-slate-950/80 border border-purple-500/30 text-center">
             <span className="text-[10px] font-mono text-slate-400 block uppercase">
-              Match Score <span className="text-purple-400/80 lowercase">[r²]</span>
+              Match <span className="text-purple-400/80">[R²]</span>
             </span>
             <span className="text-sm font-extrabold text-purple-300 font-mono">96%</span>
           </div>
           <div className="px-3 py-1.5 rounded-xl bg-slate-950/80 border border-amber-500/30 text-center">
             <span className="text-[10px] font-mono text-slate-400 block uppercase">
-              Water Depth <span className="text-amber-400/80 lowercase">[z]</span>
+              Depth <span className="text-amber-400/80">[z]</span>
             </span>
             <span className="text-sm font-extrabold text-amber-300 font-mono">{Number(selectedDepth).toFixed(2)}m</span>
           </div>
@@ -132,22 +131,7 @@ export default function ModelStudioView({
         </div>
       </div>
 
-      {/* 3. FULL-WIDTH DEEP CTD PROFILES & SCATTER CHARTS */}
-      <div className="w-full mt-2">
-        <DataCharts
-          verticalProfile={verticalProfile}
-          depthProfileData={depthProfileData}
-          timeSeriesData={timeSeriesData}
-          selectedStation={liveStationData || selectedStation}
-          isLiveCopernicus={isLive}
-          dataSource={dataSource}
-          selectedDate={selectedDate}
-          setSelectedDate={setSelectedDate}
-          selectedDepth={selectedDepth}
-          setSelectedDepth={setSelectedDepth}
-        />
-      </div>
-
     </div>
   );
 }
+

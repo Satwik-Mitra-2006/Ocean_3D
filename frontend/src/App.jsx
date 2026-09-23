@@ -37,9 +37,36 @@ import ExportModal from './components/ExportModal';
 import DataIngestionModal from './components/DataIngestionModal';
 import ScienceTourModal from './components/ScienceTourModal';
 import FloatingChatbot from './components/FloatingChatbot';
+import { THEMES } from './themeConfig';
 import './App.css';
 
 export default function App() {
+  // Theme state: 'deep-navy' (recommended), 'marine-steel', 'charcoal', 'abyss', 'coastal-light'
+  const [theme, setTheme] = useState(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get('theme');
+      if (q && THEMES[q]) return q;
+      return localStorage.getItem('ocean3d_theme') || 'deep-navy';
+    } catch {
+      return 'deep-navy';
+    }
+  });
+
+  const handleSelectTheme = useCallback((newTheme) => {
+    if (!THEMES[newTheme]) return;
+    setTheme(newTheme);
+    try {
+      localStorage.setItem('ocean3d_theme', newTheme);
+      document.documentElement.setAttribute('data-theme', newTheme);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
   // Navigation & Modal state
   const [activeAspect, setActiveAspect] = useState(() => {
     try {
@@ -308,8 +335,13 @@ export default function App() {
     return generateDepthProfileData(selectedStation);
   }, [selectedStation]);
 
+  const currentThemeObj = THEMES[theme] || THEMES['deep-navy'];
+
   return (
-    <div className="min-h-screen bg-[#070913] text-slate-100 flex font-sans selection:bg-indigo-500 selection:text-white relative">
+    <div 
+      className={`min-h-screen text-slate-100 flex font-sans selection:bg-indigo-500 selection:text-white relative transition-colors duration-300 ${currentThemeObj.bgClass}`}
+      style={currentThemeObj.bgStyle}
+    >
 
       {/* 1. LEFT VERTICAL NAVIGATION SIDEBAR RAIL (OPTION A) */}
       <NavigationSidebar
@@ -322,6 +354,7 @@ export default function App() {
         backendHealth={backendHealth}
         simulationScenario={simulationScenario}
         setSimulationScenario={setSimulationScenario}
+        currentTheme={theme}
       />
 
       {/* 2. MAIN APPLICATION WORKSPACE */}
@@ -336,6 +369,8 @@ export default function App() {
           backendHealth={backendHealth}
           pointsCount={gridPoints.length || 1122}
           activeStation={liveStationData || selectedStation}
+          currentTheme={theme}
+          onSelectTheme={handleSelectTheme}
         />
 
         {/* 3. DEDICATED WORKSPACE ASPECTS */}

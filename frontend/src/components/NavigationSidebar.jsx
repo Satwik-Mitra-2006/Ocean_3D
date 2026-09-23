@@ -101,9 +101,6 @@ export default function NavigationSidebar({
                   <span className="text-base font-extrabold tracking-tight text-white font-sans">
                     Ocean<span className="text-indigo-400">3D</span>
                   </span>
-                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-indigo-950/80 border border-indigo-500/30 text-indigo-300 font-bold">
-                    SIH'26
-                  </span>
                 </div>
                 <span className="text-[10px] font-medium text-slate-400 truncate">
                   3D Ocean Digital Twin
@@ -246,17 +243,17 @@ export default function NavigationSidebar({
 
       {/* 4. BOTTOM ACTION UTILITIES */}
       <div className="p-3 border-t border-indigo-500/20 flex flex-col gap-2 bg-[#080a13]/80">
-        {/* Judge 1-Click Science Tour Button */}
+        {/* 1-Click Guided Platform Tour Button */}
         <button
           type="button"
           onClick={onOpenScienceTour}
           className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl font-bold text-xs bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-slate-950 shadow-lg shadow-orange-500/20 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer ${
             isCollapsed ? 'p-2' : ''
           }`}
-          title="Start 1-Click Guided Science Tour for Judges"
+          title="Start 1-Click Interactive Guided Platform Tour"
         >
           <Sparkles className="w-4 h-4 shrink-0 text-slate-950" />
-          {!isCollapsed && <span className="font-extrabold uppercase tracking-wide">Judge Tour</span>}
+          {!isCollapsed && <span className="font-extrabold uppercase tracking-wide">Guided Tour</span>}
         </button>
 
         {/* Settings button */}

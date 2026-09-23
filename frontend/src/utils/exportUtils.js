@@ -637,7 +637,7 @@ export function exportStationToPDF(station, date = '2026-06-23', selectedDepth =
 
   doc.setTextColor(148, 163, 184);
   doc.setFontSize(7);
-  doc.text('Ocean3D - Interactive Ocean Visualization Platform | INCOIS MoES SIH 2026', 14, 288);
+  doc.text('Ocean3D - Interactive Ocean Visualization Platform | INCOIS MoES Ocean Observation', 14, 288);
   doc.text('Page 1 of 2 (Continued on Page 2 for Vertical Profiles to 2000m)', 132, 288);
 
   // =========================================================================
@@ -823,7 +823,7 @@ export function exportStationToPDF(station, date = '2026-06-23', selectedDepth =
   // Page 2 Footer
   doc.setTextColor(148, 163, 184);
   doc.setFontSize(7);
-  doc.text('Ocean3D - Interactive Ocean Visualization Platform | INCOIS MoES SIH 2026', 14, 288);
+  doc.text('Ocean3D - Interactive Ocean Visualization Platform | INCOIS MoES Ocean Observation', 14, 288);
   doc.text('Page 2 of 2 (End of Report)', 160, 288);
 
   const filename = `Ocean3D_${stCode}_${date}_Report.pdf`;

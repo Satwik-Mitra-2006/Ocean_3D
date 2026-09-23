@@ -15,6 +15,7 @@ import {
   Download,
   Sparkles
 } from 'lucide-react';
+import ThemeSwitcher from './ThemeSwitcher';
 
 export default function Navbar({ 
   activeTab, 
@@ -24,20 +25,22 @@ export default function Navbar({
   onOpenScienceTour,
   backendHealth, 
   pointsCount = 0,
-  activeStation = null
+  activeStation = null,
+  currentTheme = 'deep-navy',
+  onSelectTheme
 }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const isLive = Boolean(backendHealth?.dataset_available);
   const datasetId = backendHealth?.metadata?.dataset_id || 'cmems_mod_glo_phy_my_0.083deg_P1D-m';
 
   const aspectTitles = {
-    '3d-twin': '3D Digital Twin (Globe & Subsurface)',
-    'model-studio': 'Model vs In-Situ Validation Studio',
-    'analytics': 'Depth & CTD Stratification Analytics',
-    'insitu-data': 'In-Situ Observation Fleet & Sensor Telemetry',
-    'observations': 'In-Situ Observation Fleet & Sensor Telemetry',
-    'numerical-data': 'Numerical Ocean Model (Copernicus GLORYS12V1)',
-    'download-data': 'Data Download & Export Center'
+    '3d-twin': '3D Ocean Twin',
+    'model-studio': 'Model vs In-Situ',
+    'analytics': 'Depth Analysis',
+    'insitu-data': 'In-Situ Observations',
+    'observations': 'In-Situ Observations',
+    'numerical-data': 'Ocean Model Data',
+    'download-data': 'Data Export'
   };
 
   return (
@@ -45,25 +48,19 @@ export default function Navbar({
       <header className="sticky top-0 z-40 w-full bg-[#090b14]/85 backdrop-blur-md border-b border-indigo-500/25 shadow-[0_4px_20px_rgba(0,0,0,0.4)] text-white">
         <div className="w-full px-4 sm:px-6 h-14 flex items-center justify-between">
           
-          {/* Left: Brand / Logo */}
+          {/* Left: Active Aspect Breadcrumb & Telemetry Badge (mobile shows compact logo) */}
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-500 via-violet-500 to-purple-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/25">
-              <Waves className="h-5 w-5 stroke-[2.2]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-extrabold tracking-tight text-white">
-                  Ocean<span className="text-indigo-400">3D</span>
-                </span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-950/80 border border-indigo-500/30 text-indigo-300">
-                  SIH'26
-                </span>
+            {/* Mobile-only logo when sidebar is hidden */}
+            <div className="flex md:hidden items-center gap-2">
+              <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-indigo-500 via-violet-500 to-purple-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/25">
+                <Waves className="h-4.5 w-4.5 stroke-[2.2]" />
               </div>
+              <span className="text-base font-extrabold tracking-tight text-white">
+                Ocean<span className="text-indigo-400">3D</span>
+              </span>
             </div>
-          </div>
 
-          {/* Center: Active Aspect Breadcrumb & Telemetry Badge */}
-          <div className="hidden md:flex items-center gap-2">
+            {/* Active Aspect Breadcrumb & Telemetry Badge */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/80 border border-indigo-500/30 text-xs font-mono shadow-inner">
               <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse shrink-0" />
               <span className="text-indigo-300 font-bold tracking-wide">
@@ -110,13 +107,18 @@ export default function Navbar({
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span>Copernicus Live Feed</span>
+              <span>Live Stream</span>
             </div>
 
             <div className="h-5 w-px bg-indigo-500/20 hidden sm:block" />
 
             {/* Action buttons */}
             <div className="flex items-center gap-1.5">
+              <ThemeSwitcher 
+                currentTheme={currentTheme} 
+                onSelectTheme={onSelectTheme} 
+              />
+
               <button
                 onClick={onOpenSettings}
                 title="Platform Settings & NetCDF Config"

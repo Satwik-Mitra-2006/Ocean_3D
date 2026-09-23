@@ -36,7 +36,8 @@ import {
   AlertCircle,
   X,
   Globe2,
-  Box
+  Box,
+  Leaf
 } from 'lucide-react';
 
 // Real Copernicus Marine NetCDF dataset timestamps (7 daily slices)
@@ -213,12 +214,23 @@ export default function OceanScene({
     const baseT = Number(target.baseTemp ?? target.temperature ?? 29.85);
     const baseS = Number(target.baseSalinity ?? target.salinity ?? 35.15);
     const baseV = Number(target.baseSpeed ?? target.currentSpeed ?? 0.18);
+    const baseChl = Number(target.chlorophyll ?? target.baseChlorophyll ?? 1.45);
     const depthOffset = Number(internalDepth || 0.49);
 
     const tempAtDepth = +(baseT - (depthOffset * 0.08)).toFixed(2);
     const salAtDepth = +(baseS + (depthOffset * 0.015)).toFixed(2);
     const speedAtDepth = +(Math.max(0.02, baseV - (depthOffset * 0.005))).toFixed(3);
     const densityAtDepth = +(1000 + 0.805 * salAtDepth - 0.0065 * Math.pow(tempAtDepth - 4, 2) + 0.0045 * depthOffset).toFixed(2);
+
+    let chlAtDepth;
+    if (depthOffset <= 11.4) {
+      chlAtDepth = +(baseChl * (1.0 + 0.08 * Math.sin((depthOffset / 11.4) * Math.PI))).toFixed(2);
+    } else if (depthOffset <= 120) {
+      const scm = baseChl * 1.25 * Math.exp(-Math.pow(depthOffset - 35.0, 2) / (2 * 625));
+      chlAtDepth = +(Math.max(0.04, scm + baseChl * 0.35 * Math.exp(-depthOffset / 60.0))).toFixed(2);
+    } else {
+      chlAtDepth = +(Math.max(0.005, 0.04 * Math.exp(-(depthOffset - 120.0) / 250.0))).toFixed(3);
+    }
 
     const acc = getStationAccuracyMetrics(sCode, selectedDate, internalDepth);
     const biasT = Number(acc?.biasT ?? -0.26);
@@ -237,6 +249,7 @@ export default function OceanScene({
       salinity: salAtDepth,
       speed: speedAtDepth,
       density: densityAtDepth,
+      chlorophyll: chlAtDepth,
       biasT: biasT,
       biasS: biasS,
       depth: depthOffset,
@@ -309,7 +322,8 @@ export default function OceanScene({
         tempStr: '30.07 °C',
         salStr: '35.03 PSU',
         speedStr: '0.138 m/s',
-        densityStr: '1023.68 kg/m³'
+        densityStr: '1023.68 kg/m³',
+        chlStr: '1.45 mg/m³'
       };
     }
 
@@ -318,17 +332,20 @@ export default function OceanScene({
     const modelS = Number(activeLayerData.salinity ?? activeLayerData.currentSalinity ?? 35.01);
     const modelV = Number(activeLayerData.current_speed ?? activeLayerData.currentSpeed ?? 0.184);
     const modelD = Number(activeLayerData.density ?? 1023.68);
+    const modelChl = Number(activeLayerData.chlorophyll ?? activeLayerData.currentChlorophyll ?? 1.45);
 
     // Station scientific validation metrics (In-Situ = Model - Bias)
     const accuracy = getStationAccuracyMetrics(stnCode, selectedDate, internalDepth);
     const biasT = Number(accuracy?.biasT ?? -0.28);
     const biasS = Number(accuracy?.biasS ?? 0.08);
     const biasV = Number(accuracy?.biasSpeed ?? 0.025);
+    const biasChl = Number(accuracy?.biasChl ?? 0.05);
 
     const obsT = +(modelT - biasT).toFixed(2);
     const obsS = +(modelS - biasS).toFixed(2);
     const obsV = +(Math.max(0.015, modelV - biasV)).toFixed(3);
     const obsD = +(1000 + 0.805 * obsS - 0.0065 * Math.pow(obsT - 4, 2) + 0.0045 * Number(internalDepth || 0.49)).toFixed(2);
+    const obsChl = +(Math.max(0.04, modelChl - biasChl)).toFixed(2);
 
     if (activeDataMode === 'insitu') {
       return {
@@ -336,10 +353,12 @@ export default function OceanScene({
         sal: obsS,
         speed: obsV,
         density: obsD,
+        chl: obsChl,
         tempStr: `${obsT.toFixed(2)} °C`,
         salStr: `${obsS.toFixed(2)} PSU`,
         speedStr: `${obsV.toFixed(3)} m/s`,
-        densityStr: `${obsD.toFixed(2)} kg/m³`
+        densityStr: `${obsD.toFixed(2)} kg/m³`,
+        chlStr: `${obsChl.toFixed(2)} mg/m³`
       };
     }
 
@@ -348,15 +367,18 @@ export default function OceanScene({
       const diffS = +(modelS - obsS).toFixed(2);
       const diffV = +(modelV - obsV).toFixed(3);
       const diffD = +(modelD - obsD).toFixed(2);
+      const diffChl = +(modelChl - obsChl).toFixed(2);
       return {
         temp: diffT,
         sal: diffS,
         speed: diffV,
         density: diffD,
+        chl: diffChl,
         tempStr: `ΔT ${diffT >= 0 ? '+' : ''}${diffT.toFixed(2)} °C`,
         salStr: `ΔS ${diffS >= 0 ? '+' : ''}${diffS.toFixed(2)} PSU`,
         speedStr: `Δ|U| ${diffV >= 0 ? '+' : ''}${diffV.toFixed(3)} m/s`,
-        densityStr: `Δρ ${diffD >= 0 ? '+' : ''}${diffD.toFixed(2)} kg/m³`
+        densityStr: `Δρ ${diffD >= 0 ? '+' : ''}${diffD.toFixed(2)} kg/m³`,
+        chlStr: `ΔChl ${diffChl >= 0 ? '+' : ''}${diffChl.toFixed(2)} mg/m³`
       };
     }
 
@@ -366,10 +388,12 @@ export default function OceanScene({
       sal: modelS,
       speed: modelV,
       density: modelD,
+      chl: modelChl,
       tempStr: `${modelT.toFixed(2)} °C`,
       salStr: `${modelS.toFixed(2)} PSU`,
       speedStr: `${modelV.toFixed(3)} m/s`,
-      densityStr: `${modelD.toFixed(2)} kg/m³`
+      densityStr: `${modelD.toFixed(2)} kg/m³`,
+      chlStr: `${modelChl.toFixed(2)} mg/m³`
     };
   }, [activeLayerData, activeDataMode]);
 
@@ -943,6 +967,34 @@ export default function OceanScene({
                 EOS-80 Potential
               </div>
             </div>
+
+            {/* 5. Chlorophyll-a (BGC) - Bio-Optical Primary Productivity */}
+            <div 
+              key={(displayStationData.code || '') + '-chl'}
+              className="col-span-2 bg-[#06201b]/90 hover:bg-[#06201b] rounded-xl p-1.5 border border-emerald-500/40 flex items-center justify-between shadow-xs transition-all"
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="p-1 rounded-lg bg-emerald-500/20 text-emerald-400">
+                  <Leaf className="w-3 h-3 text-emerald-400" />
+                </span>
+                <div className="flex flex-col">
+                  <span className="text-[8.5px] font-bold text-emerald-300 leading-tight">
+                    Chlorophyll-a (BGC)
+                  </span>
+                  <span className="text-[7.5px] font-mono text-emerald-400/70">
+                    Primary Productivity
+                  </span>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs font-mono font-extrabold text-emerald-300">
+                  {displayStationData.chlorophyll.toFixed(2)} <span className="text-[7.5px] font-normal text-emerald-400/80">mg/m³</span>
+                </div>
+                <div className="text-[7px] font-mono text-emerald-400/60">
+                  Bio-Optical Fluorometer
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Depth Layer & Telemetry Bar - Flies in last */}
@@ -1064,7 +1116,7 @@ export default function OceanScene({
               </span>
             ) : (primaryVariable === 'chlorophyll' || primaryVariable === 'chl') ? (
               <span className="text-emerald-200 font-extrabold px-1 rounded bg-emerald-950/60 border border-emerald-500/30">
-                Chl: <strong className="text-emerald-300">{Number(currentStn?.chlorophyll ?? 1.45).toFixed(2)} mg/m³</strong>
+                Chl: <strong className="text-emerald-300">{displayedValues.chlStr || `${Number(currentStn?.chlorophyll ?? 1.45).toFixed(2)} mg/m³`}</strong>
               </span>
             ) : (
               <span className={primaryVariable === 'current_speed' || primaryVariable === 'uo' || primaryVariable === 'currents' ? 'text-cyan-200 font-extrabold px-1 rounded bg-cyan-950/60 border border-cyan-500/30' : ''}>
@@ -1109,6 +1161,14 @@ export default function OceanScene({
               <div className="bg-[#02132b]/60 p-1 rounded border border-cyan-400/20">
                 <span className="text-slate-400 block text-[8px]">Salinity</span>
                 <span className="text-teal-300 font-bold">{Number(columnActiveProbe.data?.salinity ?? 35.03).toFixed(2)} PSU</span>
+              </div>
+              <div className="bg-[#06201b]/70 p-1 rounded border border-emerald-400/30 col-span-2 flex items-center justify-between">
+                <span className="text-emerald-300 text-[8px] flex items-center gap-1">
+                  <Leaf className="w-2.5 h-2.5 text-emerald-400" /> Chlorophyll-a (BGC):
+                </span>
+                <span className="text-emerald-300 font-bold">
+                  {Number(columnActiveProbe.data?.chlorophyll ?? currentStn?.chlorophyll ?? 1.45).toFixed(2)} mg/m³
+                </span>
               </div>
               <div className="bg-[#02132b]/60 p-1 rounded border border-cyan-400/20 col-span-2 flex items-center justify-between">
                 <span className="text-slate-400 text-[8px]">Velocity:</span>

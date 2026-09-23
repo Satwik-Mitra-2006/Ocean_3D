@@ -336,7 +336,7 @@ export default function Sidebar({
             />
           </div>
 
-          {/* Vertical Exaggeration Slider (Mandatory SIH Requirement) */}
+          {/* Vertical Exaggeration Slider */}
           <div>
             <div className="flex justify-between text-[10px] font-mono text-slate-300 mb-1">
               <span className="flex items-center gap-1">
@@ -356,7 +356,7 @@ export default function Sidebar({
             />
           </div>
 
-          {/* Dynamic Colorbar Palette & Log/Linear Scale (Mandatory SIH Requirement) */}
+          {/* Dynamic Colorbar Palette & Log/Linear Scale */}
           <div className="grid grid-cols-2 gap-2 pt-1 border-t border-cyan-400/10">
             <div>
               <div className="text-[10px] font-mono text-slate-300 mb-1 flex items-center justify-between">

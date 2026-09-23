@@ -14,7 +14,8 @@ import {
   Thermometer,
   Droplets,
   Activity,
-  Wind
+  Wind,
+  ChevronDown
 } from 'lucide-react';
 
 export default function Ocean3DView({
@@ -104,33 +105,39 @@ export default function Ocean3DView({
               </span>
             </div>
             <p className="text-xs text-slate-400">
-              Interactive 3D Digital Twin (Surface Circulation) + 3D Subsurface Water Column (0.49m - 11.40m Copernicus Depth)
+              3D ocean circulation and subsurface water column exploration.
             </p>
           </div>
         </div>
 
-        {/* Center: Quick Region / Station Bookmarks */}
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1 max-w-full md:max-w-xl">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono mr-1 shrink-0 flex items-center gap-1">
-            <Compass className="h-3 w-3 text-sky-400" /> Focus:
+        {/* Center: Quick Region / Station Focus Dropdown */}
+        <div className="flex items-center gap-2 bg-[#060c18] px-3 py-1.5 rounded-xl border border-slate-800 shadow-sm">
+          <span className="text-[11px] font-bold text-sky-400 uppercase tracking-wider font-mono shrink-0 flex items-center gap-1.5">
+            <Compass className="h-3.5 w-3.5 text-sky-400" /> Focus:
           </span>
-          {presets.map(p => {
-            const isSel = selectedStation?.code === p.code;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => handleSelectPreset(p)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  isSel
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 font-bold ring-1 ring-blue-300'
-                    : 'bg-[#060c18] hover:bg-[#0f1b34] text-slate-300 border border-slate-800'
-                }`}
-              >
-                {p.name}
-              </button>
-            );
-          })}
+          <div className="relative">
+            <select
+              value={selectedStation?.code || activePreset}
+              onChange={(e) => {
+                const targetCode = e.target.value;
+                const foundPreset = presets.find(p => p.code === targetCode || p.id === targetCode);
+                if (foundPreset) {
+                  handleSelectPreset(foundPreset);
+                } else {
+                  const foundStn = stations.find(s => (s.code || s.id) === targetCode);
+                  if (foundStn && onSelectStation) onSelectStation(foundStn);
+                }
+              }}
+              className="bg-[#0e172a] hover:bg-[#14213d] text-white text-xs font-bold font-mono py-1.5 pl-3 pr-8 rounded-lg border border-sky-500/40 focus:border-sky-400 focus:outline-none transition-all cursor-pointer appearance-none shadow-inner"
+            >
+              {presets.map(p => (
+                <option key={p.id} value={p.code} className="bg-[#0b1324] text-slate-200 py-1 font-sans">
+                  {p.name} — {p.desc}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-sky-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
         </div>
 
         {/* Right: Parameter Quick Chips */}
