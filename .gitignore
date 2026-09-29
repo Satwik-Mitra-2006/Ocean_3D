@@ -20,3 +20,53 @@ Thumbs.db
 
 # Data files
 backend/data/*.nc
+
+# Presentations and Media (User excluded)
+*.pptx
+*.ppt
+*.mp4
+*.mp3
+*.wav
+*.m4a
+*.avi
+
+# Video & Presentation Build Artifacts
+video_production/
+website_video_production*/
+rendered_slides/
+current_redesigned_slides/
+extracted_ppt/
+ppt_assets/
+white_slides/
+world_class_slides/
+demo_option_a/
+
+# Temporary video/recording scripts and tests
+test_*
+record_scenes*.js
+assemble_final_video*.py
+generate_*_video.py
+generate_perfect_voiceover*.py
+generate_website_voiceover.py
+generate_polished_presentation.py
+generate_presentation.py
+generate_world_class_deck.py
+create_white_deck.py
+create_backgrounds.py
+build_*.py
+add_slide_*.py
+dump_*.py
+render_*.py
+inspect_ppt.py
+inspect_dom.js
+verify_content.py
+process_bathy.py
+check_duration.py
+command_deck_base.py
+deck_builder_base.py
+export_slides_to_images.py
+redesign_current_deck.py
+problem_presentation.html
+*.txt
+
+generate_qr.py

@@ -295,7 +295,7 @@ export default function OceanAIAgent({
           `• **VHF Monitoring**: Maintain 24/7 radio watch on **Marine VHF Channel 16 (156.8 MHz)** and NAVTEX receivers.\n` +
           `• **72-Hour Survival Kit**: Keep fresh potable water, non-perishable food, satellite emergency locator beacons, and battery-powered flashlights ready.\n\n` +
           `#### 4. Post-Landfall Precaution\n` +
-          `• **Beware the Eye of the Cyclone**: Sudden calm does not mean the storm is over; violent reverse gale-force winds follow rapidly.\n` +
+          `• **Beware the Eye of the Cyclone**: Sudden calm does not mean the storm has ended; violent reverse gale-force winds follow rapidly.\n` +
           `• **Wait for All-Clear**: Do not venture back into the sea until the Coast Guard or Disaster Management Authority officially lifts warnings.`,
         impacts: [
           `SST cyclonic potential: ${tempVal}°C (Critical threshold: 28.5°C)`,

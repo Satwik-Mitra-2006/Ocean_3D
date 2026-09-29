@@ -500,7 +500,7 @@ export default function ModelDataView({
           <div>
             <span className="text-[10px] text-slate-400 uppercase font-mono block">Map Accuracy</span>
             <span className="text-sm font-bold text-white">High Detail (~9 km)</span>
-            <span className="text-[10px] text-teal-300 block font-mono">Over 1,100 ocean check points</span>
+            <span className="text-[10px] text-teal-300 block font-mono">1,122 Ocean Checkpoints</span>
           </div>
         </div>
 
@@ -709,7 +709,7 @@ export default function ModelDataView({
                 <div className="bg-[#060c18] border border-slate-800 rounded-xl p-4 flex flex-col gap-2.5">
                   <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
                     <span className="text-xs font-bold text-sky-400 font-mono uppercase flex items-center gap-2">
-                      Overview: {current.name}
+                      Variable Analysis: {current.name}
                     </span>
                     <span className="text-xs font-mono bg-sky-950 text-sky-300 px-2 py-0.5 rounded border border-sky-500/40">
                       Measurement Unit: {current.unit}

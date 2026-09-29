@@ -18,8 +18,13 @@ import {
   Info,
   TrendingUp,
   GitCompare,
-  BarChart2
+  BarChart2,
+  Copy,
+  Check,
+  Globe2,
+  Code2
 } from 'lucide-react';
+import indiaEEZData from '../data/india_eez.json';
 import { OBSERVATION_STATIONS, generateDepthProfileData, generateTimeSeriesData } from '../data/mockOceanData';
 import { COPERNICUS_REAL_DEPTHS } from '../components/OceanCrossSection';
 import ModelObservationComparisonCard from '../components/ModelObservationComparisonCard';
@@ -63,6 +68,23 @@ export default function ExportDataView({
   const [isExportingCSV, setIsExportingCSV] = useState(false);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [lastExported, setLastExported] = useState(null);
+  const [copiedEndpoint, setCopiedEndpoint] = useState(false);
+
+  const handleCopyEndpoint = (text) => {
+    navigator.clipboard.writeText(text);
+    setCopiedEndpoint(true);
+    setTimeout(() => setCopiedEndpoint(false), 2000);
+  };
+
+  const handleDownloadEEZGeoJSON = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(indiaEEZData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", "India_EEZ_UNCLOS_2.37M_km2.geojson");
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
 
   const activeDate = propSetDate ? propDate : internalDate;
   const setActiveDate = propSetDate || setInternalDate;
@@ -296,7 +318,126 @@ export default function ExportDataView({
         />
       </div>
 
-      {/* 5. STRATIFIED DEPTH PROFILE EXPORT TABLE (DOWNLOAD SCOPE) */}
+      {/* 5. ENTERPRISE GIS & OGC INTEROPERABILITY SUITE */}
+      <div className="bg-[#03152d]/90 backdrop-blur-md rounded-2xl border border-sky-500/30 p-4 shadow-2xl flex flex-col gap-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-sky-500/20 pb-2.5">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-sky-500/20 text-sky-300 border border-sky-500/40">
+              <Globe2 className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-extrabold text-white tracking-tight">
+                  Enterprise GIS & OGC Spatial Data Interoperability
+                </h2>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-sky-950 text-sky-300 border border-sky-500/40 uppercase">
+                  OGC Compliant
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                Plug directly into QGIS, ArcGIS Desktop, Google Earth, and MoES/INCOIS national spatial data infrastructure.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownloadEEZGeoJSON}
+              className="px-3 py-1.5 rounded-xl bg-[#06152d] hover:bg-[#0a2044] border border-sky-400/40 hover:border-sky-300 text-sky-200 text-xs font-bold font-mono transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+            >
+              <span>🇮🇳</span>
+              <span>Download India EEZ GeoJSON</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 3-Column Interoperability Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          
+          {/* Card 1: Live OGC WMS Endpoint */}
+          <div className="p-3 rounded-xl bg-[#020b18]/80 border border-slate-800 flex flex-col justify-between gap-2">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-bold text-sky-300 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-sky-400" /> OGC WMS 1.3.0 Stream
+                </span>
+                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-500/30">
+                  Live Raster
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 mb-2">
+                Standard Web Map Service for INCOIS SST, Salinity, and Current Velocity layers.
+              </p>
+              <div className="p-2 rounded-lg bg-[#010610] border border-slate-800 font-mono text-[9.5px] text-slate-300 truncate">
+                https://aquanova.incois.gov.in/api/wms?SERVICE=WMS&REQUEST=GetCapabilities
+              </div>
+            </div>
+            <button
+              onClick={() => handleCopyEndpoint('https://aquanova.incois.gov.in/api/wms?SERVICE=WMS&REQUEST=GetCapabilities')}
+              className="w-full py-1.5 rounded-lg bg-sky-950/80 hover:bg-sky-900 border border-sky-500/30 text-sky-300 hover:text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              {copiedEndpoint ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedEndpoint ? 'Copied WMS URL!' : 'Copy WMS Endpoint'}</span>
+            </button>
+          </div>
+
+          {/* Card 2: QGIS & ArcGIS Direct Connection */}
+          <div className="p-3 rounded-xl bg-[#020b18]/80 border border-slate-800 flex flex-col justify-between gap-2">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-bold text-emerald-300 flex items-center gap-1.5">
+                  <Compass className="w-3.5 h-3.5 text-emerald-400" /> QGIS & ArcGIS Desktop
+                </span>
+                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/30">
+                  Ready
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 mb-2">
+                In QGIS: Layer → Add Layer → Add WMS/WMTS Layer. Enter the AquaNova endpoint to overlay 3D ocean layers onto coastal basemaps.
+              </p>
+              <div className="space-y-1 font-mono text-[9px] text-slate-400 bg-[#010610] p-2 rounded-lg border border-slate-800">
+                <div className="text-emerald-400">Layer: incois_glorys_thetao_4d</div>
+                <div className="text-slate-300">Format: image/png (EPSG:4326 WGS84)</div>
+              </div>
+            </div>
+            <div className="text-[9.5px] font-mono text-emerald-400/90 text-center py-1">
+              Supports 0.49m to 2000m Depth Stratification
+            </div>
+          </div>
+
+          {/* Card 3: Python xarray / netCDF4 Pipeline */}
+          <div className="p-3 rounded-xl bg-[#020b18]/80 border border-slate-800 flex flex-col justify-between gap-2">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-bold text-violet-300 flex items-center gap-1.5">
+                  <Code2 className="w-3.5 h-3.5 text-violet-400" /> Python xarray OpenDAP
+                </span>
+                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-violet-950 text-violet-300 border border-violet-500/30">
+                  SciPy Ready
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 mb-2">
+                Load multi-dimensional NetCDF arrays directly into Python without downloading large files.
+              </p>
+              <pre className="p-2 rounded-lg bg-[#010610] border border-slate-800 font-mono text-[9px] text-violet-300 overflow-x-auto leading-relaxed">
+{`import xarray as xr
+ds = xr.open_dataset('https://aquanova.incois.gov.in/api/netcdf')
+sst = ds['thetao'].sel(depth=0.49)`}
+              </pre>
+            </div>
+            <button
+              onClick={() => handleCopyEndpoint(`import xarray as xr\nds = xr.open_dataset('https://aquanova.incois.gov.in/api/netcdf')\nsst = ds['thetao'].sel(depth=0.49)`)}
+              className="w-full py-1.5 rounded-lg bg-violet-950/80 hover:bg-violet-900 border border-violet-500/30 text-violet-300 hover:text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              <span>Copy Python Pipeline</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* 6. STRATIFIED DEPTH PROFILE EXPORT TABLE (DOWNLOAD SCOPE) */}
       <div className="bg-[#03152d]/85 backdrop-blur-md rounded-2xl border border-cyan-500/25 p-4 shadow-2xl flex flex-col gap-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-cyan-500/20 pb-3">
           <div>

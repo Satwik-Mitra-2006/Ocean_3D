@@ -64,55 +64,52 @@ export default function TimeControls({
   };
 
   return (
-    <div className="w-full bg-[#020814]/10 backdrop-blur-[2px] rounded-2xl p-3 border border-cyan-400/20 shadow-xl flex flex-col gap-2 select-none font-sans animate-in fade-in duration-300">
+    <div className="w-full bg-[#020814]/40 backdrop-blur-md rounded-2xl p-2 sm:px-3 sm:py-2 border border-cyan-400/20 shadow-xl flex flex-col gap-1.5 select-none font-sans animate-in fade-in duration-300">
       
-      {/* ROW 1: HEADER & TIMELINE CONTROLS */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+      {/* ROW 1: CONTROLS & ACTIVE TIMELINE TELEMETRY */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         
-        {/* Left: Title & Synced Date Badge */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-cyan-500 via-sky-600 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/20 shrink-0">
-            <Calendar className="h-4 w-4" />
+        {/* Left: Title, Active Date Pill & Live Station SST */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="h-7 w-7 rounded-lg bg-gradient-to-tr from-cyan-500 via-sky-600 to-blue-600 flex items-center justify-center text-white shadow-md shadow-sky-500/20 shrink-0">
+            <Calendar className="h-3.5 w-3.5" />
           </div>
 
-          <div>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs font-extrabold text-white tracking-tight uppercase font-mono">
-                Temporal Dimension (7-Day Reanalysis)
-              </span>
-              <span className="text-slate-500 hidden sm:inline">•</span>
-              <span className="text-[10.5px] text-emerald-400 font-mono font-bold flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3" /> Copernicus P1D-m Daily Resolution
-              </span>
-            </div>
+          <span className="text-[11px] font-extrabold text-white tracking-tight uppercase font-mono hidden md:inline">
+            7-Day Reanalysis
+          </span>
 
-            {/* Active Date Pill */}
-            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-sky-950/70 border border-sky-500/40 text-xs font-mono text-sky-200">
-                <Calendar className="h-3.5 w-3.5 text-sky-400" />
-                <span className="font-extrabold text-white">{selectedDate}</span>
-                <span className="text-[10px] text-sky-400">({AVAILABLE_DATES[currentDateIdx]?.weekday})</span>
-                <span className="text-slate-600">|</span>
-                <span className="text-[10px] text-sky-300 font-bold">Day {currentDateIdx + 1} of 7</span>
-              </div>
-
-              <span className="px-2 py-0.5 rounded-full text-[9.5px] font-bold font-mono uppercase bg-emerald-950/70 text-emerald-300 border border-emerald-500/30">
-                100% Genuine NetCDF Observation
-              </span>
-            </div>
+          {/* Active Date Pill */}
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-sky-950/80 border border-sky-500/40 text-[11px] font-mono text-sky-200">
+            <span className="font-extrabold text-white">{AVAILABLE_DATES[currentDateIdx]?.label}</span>
+            <span className="text-[10px] text-sky-400">({AVAILABLE_DATES[currentDateIdx]?.weekday})</span>
+            <span className="text-slate-600">|</span>
+            <span className="text-[10px] text-cyan-300 font-bold">Day {currentDateIdx + 1}/7</span>
           </div>
+
+          {station && (
+            <div className="hidden lg:flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-lg bg-slate-900/70 border border-slate-700/50">
+              <span className="text-slate-400">{station.code || station.name}:</span>
+              <span className="text-amber-300 font-bold">
+                {(station.temperature ?? station.baseTemp ?? 28.5).toFixed(1)}°C
+              </span>
+              <span className="text-slate-600">/</span>
+              <span className="text-cyan-300 font-bold">
+                {(station.salinity ?? station.baseSalinity ?? 35.0).toFixed(1)} PSU
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Right: Play/Pause, Steppers, Speeds */}
-        <div className="flex items-center gap-1.5 self-start sm:self-center flex-wrap">
-          {/* Step Back Day */}
+        {/* Right: Steppers, Play/Pause, Speeds & Reset */}
+        <div className="flex items-center gap-1.5 flex-wrap">
           <button
             type="button"
             onClick={handlePrevDay}
             title="Previous Day"
-            className="p-1.5 rounded-xl bg-[#060c18]/80 hover:bg-slate-800 text-slate-300 hover:text-white transition-all cursor-pointer"
+            className="p-1 rounded-lg bg-[#060c18]/80 hover:bg-slate-800 text-slate-300 hover:text-white transition-all cursor-pointer"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-3.5 w-3.5" />
           </button>
 
           {/* Play / Pause 7-Day Sequence */}
@@ -120,45 +117,44 @@ export default function TimeControls({
             type="button"
             onClick={() => setIsPlaying(!isPlaying)}
             title={isPlaying ? 'Pause 7-Day Sequence' : 'Play 7-Day Ocean Evolution'}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-md cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all shadow-md cursor-pointer ${
               isPlaying
                 ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/30 ring-1 ring-amber-300'
-                : 'bg-[#0d9488] hover:bg-[#14b8a6] text-white shadow-[0_0_15px_rgba(13,148,136,0.4)] ring-1 ring-teal-300/50'
+                : 'bg-[#0d9488] hover:bg-[#14b8a6] text-white shadow-[0_0_12px_rgba(13,148,136,0.4)] ring-1 ring-teal-300/50'
             }`}
           >
             {isPlaying ? (
               <>
-                <Pause className="h-3.5 w-3.5 fill-white" />
-                <span>Pause Sequence</span>
+                <Pause className="h-3 w-3 fill-white" />
+                <span>Pause</span>
               </>
             ) : (
               <>
-                <Play className="h-3.5 w-3.5 fill-white" />
+                <Play className="h-3 w-3 fill-white" />
                 <span>Play 7 Days</span>
               </>
             )}
           </button>
 
-          {/* Step Forward Day */}
           <button
             type="button"
             onClick={handleNextDay}
             title="Next Day"
-            className="p-1.5 rounded-xl bg-[#060c18]/80 hover:bg-slate-800 text-slate-300 hover:text-white transition-all cursor-pointer"
+            className="p-1 rounded-lg bg-[#060c18]/80 hover:bg-slate-800 text-slate-300 hover:text-white transition-all cursor-pointer"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-3.5 w-3.5" />
           </button>
 
           {/* Speed multiplier selector */}
-          <div className="flex items-center bg-[#040814]/80 rounded-xl p-0.5 text-[10px] font-mono font-bold text-slate-400">
+          <div className="flex items-center bg-[#040814]/80 rounded-lg p-0.5 text-[9.5px] font-mono font-bold text-slate-400">
             {[1, 2, 4].map(spd => (
               <button
                 key={spd}
                 type="button"
                 onClick={() => setPlaybackSpeed(spd)}
-                className={`px-2 py-1 rounded-lg cursor-pointer transition-all ${
+                className={`px-1.5 py-0.5 rounded cursor-pointer transition-all ${
                   playbackSpeed === spd
-                    ? 'bg-[#0284c7] text-white shadow-sm font-extrabold'
+                    ? 'bg-[#0284c7] text-white shadow-xs font-extrabold'
                     : 'hover:text-white'
                 }`}
               >
@@ -175,26 +171,18 @@ export default function TimeControls({
               setSelectedDate('2026-06-17');
             }}
             title="Reset to Day 1 (17 June 2026)"
-            className="hidden md:flex items-center gap-1 px-2 py-1 rounded-lg bg-[#060c18]/80 hover:bg-slate-800 text-[10.5px] font-mono text-slate-400 hover:text-white transition-colors cursor-pointer"
+            className="hidden sm:flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#060c18]/80 hover:bg-slate-800 text-[9.5px] font-mono text-slate-400 hover:text-white transition-colors cursor-pointer"
           >
-            <RotateCcw className="h-3 w-3 text-sky-400" />
-            <span>Reset (Day 1)</span>
+            <RotateCcw className="h-2.5 w-2.5 text-sky-400" />
+            <span>Reset</span>
           </button>
         </div>
       </div>
 
-      {/* ROW 2: 7 NETCDF OBSERVATION DAYS (17 TO 23 JUNE) */}
-      <div className="flex items-center gap-1.5 bg-[#02132b]/30 p-1.5 rounded-xl border border-cyan-400/15 overflow-x-auto scrollbar-none">
-        <div className="flex items-center gap-1 mr-1 shrink-0">
-          <Calendar className="h-3.5 w-3.5 text-sky-400" />
-          <span className="text-[10.5px] font-mono font-extrabold text-slate-300 uppercase tracking-tight">
-            Observation Days:
-          </span>
-        </div>
-
-        {/* 7 Days clickable buttons */}
-        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-          {AVAILABLE_DATES.map((d, i) => {
+      {/* ROW 2: 7 NETCDF REANALYSIS DAY BUTTONS */}
+      <div className="flex items-center gap-1 overflow-x-auto scrollbar-none pt-0.5">
+        <div className="flex items-center gap-1 flex-1 min-w-0">
+          {AVAILABLE_DATES.map((d) => {
             const isSelected = d.iso === selectedDate;
             return (
               <button
@@ -202,56 +190,29 @@ export default function TimeControls({
                 type="button"
                 onClick={() => setSelectedDate(d.iso)}
                 title={`Select ${d.iso} (${d.weekday}) — NetCDF Slice Day ${d.dayNum}`}
-                className={`flex-1 min-w-[70px] py-1.5 px-2 rounded-xl text-center transition-all cursor-pointer border ${
+                className={`flex-1 min-w-[58px] py-1 px-1.5 rounded-lg text-center transition-all cursor-pointer border ${
                   isSelected
-                    ? 'bg-gradient-to-r from-teal-500/90 to-cyan-500 text-white font-extrabold shadow-[0_0_20px_rgba(6,182,212,0.5)] border-cyan-300 ring-2 ring-cyan-200/60 scale-[1.02]'
-                    : 'bg-[#021a38]/45 hover:bg-[#073060]/70 text-slate-200 border-cyan-400/25'
+                    ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-extrabold shadow-sm border-cyan-300 ring-1 ring-cyan-200/60 scale-[1.01]'
+                    : 'bg-[#021a38]/40 hover:bg-[#073060]/60 text-slate-300 border-cyan-400/20'
                 }`}
               >
-                <div className="text-[11.5px] font-bold font-mono tracking-tight leading-tight">{d.label}</div>
-                <div className={`text-[9.5px] font-mono leading-none mt-0.5 ${isSelected ? 'text-sky-100' : 'text-slate-400'}`}>
-                  {d.weekday} • Day {d.dayNum}
+                <div className="text-[10.5px] font-bold font-mono tracking-tight leading-none">{d.label}</div>
+                <div className={`text-[8px] font-mono leading-none mt-0.5 ${isSelected ? 'text-sky-100 font-bold' : 'text-slate-400'}`}>
+                  {d.weekday} • D{d.dayNum}
                 </div>
               </button>
             );
           })}
         </div>
-      </div>
 
-      {/* ROW 3: SCIENTIFIC INTEGRITY & DATASET TELEMETRY FOOTER */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 text-[10px] font-mono text-slate-400">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-1 text-slate-300">
-            <Database className="h-3 w-3 text-emerald-400" />
-            <span>Dataset Product:</span>
-            <strong className="text-emerald-400 font-bold">Copernicus GLORYS12V1 (P1D-m Daily Mean)</strong>
-          </div>
-
-          <div className="flex items-center gap-1 text-slate-300">
-            <span>Observation Window:</span>
-            <strong className="text-sky-300">17 Jun – 23 Jun 2026 (7 Days)</strong>
-          </div>
-
-          <div className="flex items-center gap-1 text-slate-400">
-            <span>Scientific Data Integrity:</span>
-            <strong className="text-emerald-400">100% Genuine NetCDF Observation</strong>
-          </div>
+        {/* Compact Copernicus Metadata Badge */}
+        <div className="hidden xl:flex items-center gap-1 text-[8.5px] font-mono text-slate-400 shrink-0 pl-2 border-l border-cyan-500/20">
+          <Database className="h-2.5 w-2.5 text-emerald-400" />
+          <span>Copernicus GLORYS12V1 (P1D-m)</span>
         </div>
-
-        {station && (
-          <div className="text-[10px] text-slate-300 font-mono flex items-center gap-2">
-            <span className="text-slate-400">{station.code || station.name}:</span>
-            <span className="text-amber-300 font-bold">
-              SST: {(station.temperature ?? station.baseTemp ?? 28.5).toFixed(2)} °C
-            </span>
-            <span className="text-slate-600">|</span>
-            <span className="text-cyan-300 font-bold">
-              Sal: {(station.salinity ?? station.baseSalinity ?? 35.0).toFixed(2)} PSU
-            </span>
-          </div>
-        )}
       </div>
 
     </div>
   );
 }
+

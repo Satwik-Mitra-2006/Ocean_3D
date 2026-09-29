@@ -16,6 +16,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import ThemeSwitcher from './ThemeSwitcher';
+import { OceanLogo } from './NavigationSidebar';
 
 export default function Navbar({ 
   activeTab, 
@@ -34,13 +35,14 @@ export default function Navbar({
   const datasetId = backendHealth?.metadata?.dataset_id || 'cmems_mod_glo_phy_my_0.083deg_P1D-m';
 
   const aspectTitles = {
-    '3d-twin': '3D Ocean Twin',
-    'model-studio': 'Model vs In-Situ',
-    'analytics': 'Depth Analysis',
-    'insitu-data': 'In-Situ Observations',
-    'observations': 'In-Situ Observations',
-    'numerical-data': 'Ocean Model Data',
-    'download-data': 'Data Export'
+    '3d-twin': '3D Digital Twin',
+    'numerical-data': 'Ocean Numerical Model Data',
+    'insitu-data': 'In-Situ Observation Data',
+    'observations': 'In-Situ Observation Data',
+    'model-studio': 'Model vs In-Situ Validation',
+    'analytics': 'Depth Analysis & Curves',
+    'download-data': 'Download & Export Data',
+    'export': 'Download & Export Data'
   };
 
   return (
@@ -52,11 +54,11 @@ export default function Navbar({
           <div className="flex items-center gap-3">
             {/* Mobile-only logo when sidebar is hidden */}
             <div className="flex md:hidden items-center gap-2">
-              <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-indigo-500 via-violet-500 to-purple-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/25">
-                <Waves className="h-4.5 w-4.5 stroke-[2.2]" />
+              <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-700 border border-cyan-400/40 flex items-center justify-center text-white shadow-md shadow-cyan-500/25">
+                <OceanLogo className="w-5 h-5" />
               </div>
               <span className="text-base font-extrabold tracking-tight text-white">
-                Ocean<span className="text-indigo-400">3D</span>
+                Ocean<span className="text-cyan-400">3D</span>
               </span>
             </div>
 
@@ -79,16 +81,6 @@ export default function Navbar({
           {/* Right: Connection Status & Controls */}
           <div className="flex items-center gap-2">
 
-            {/* Science Tour Mode Button (Outreach) */}
-            <button
-              type="button"
-              onClick={onOpenScienceTour}
-              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-600/30 to-rose-600/30 hover:from-amber-600/50 hover:to-rose-600/50 border border-amber-500/40 text-amber-300 text-xs font-bold transition-all shadow-sm cursor-pointer"
-              title="Interactive Science Storytelling & Public Outreach"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
-              <span>Tour</span>
-            </button>
 
             {/* Ingest Data Button */}
             <button

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import OceanGlobe from './OceanGlobe';
@@ -9,6 +9,9 @@ import OceanFlowParticleSystem from './OceanFlowParticleSystem';
 import Copernicus3DLayer from './Copernicus3DLayer';
 import GliderSawtoothTrajectory from './GliderSawtoothTrajectory';
 import IsosurfaceLayer from './IsosurfaceLayer';
+import IndiaEEZLayer from './IndiaEEZLayer';
+import SubsurfaceLaserTransect, { TRANSECT_PRESETS } from './SubsurfaceLaserTransect';
+import OceanDataGraticule from './OceanDataGraticule';
 import { oceanDataService } from '../services/oceanDataService';
 import { getStationAccuracyMetrics, formatHourAmPm } from '../data/mockOceanData';
 import { 
@@ -37,7 +40,8 @@ import {
   X,
   Globe2,
   Box,
-  Leaf
+  Leaf,
+  Palette
 } from 'lucide-react';
 
 // Real Copernicus Marine NetCDF dataset timestamps (7 daily slices)
@@ -54,6 +58,7 @@ const NETCDF_DATES = [
 // Cinematic Fly-To Camera Controller with Spherical Arc Rotation & Smooth Zoom
 function CinematicCameraController({ targetPos, controlsRef, onArrive }) {
   const isMovingRef = useRef(false);
+  const { gl } = useThree();
 
   useEffect(() => {
     if (targetPos) {
@@ -62,6 +67,30 @@ function CinematicCameraController({ targetPos, controlsRef, onArrive }) {
       isMovingRef.current = false;
     }
   }, [targetPos]);
+
+  // CANCEL ANIMATION IMMEDIATELY if the user manually drags, touches, or zooms with the mouse/wheel!
+  // This guarantees the camera NEVER fights the user or pulls back in when zooming out.
+  useEffect(() => {
+    const dom = gl?.domElement;
+    if (!dom) return;
+
+    const handleUserInterrupt = () => {
+      if (isMovingRef.current) {
+        isMovingRef.current = false;
+        if (onArrive) onArrive();
+      }
+    };
+
+    dom.addEventListener('pointerdown', handleUserInterrupt, { passive: true });
+    dom.addEventListener('wheel', handleUserInterrupt, { passive: true });
+    dom.addEventListener('touchstart', handleUserInterrupt, { passive: true });
+
+    return () => {
+      dom.removeEventListener('pointerdown', handleUserInterrupt);
+      dom.removeEventListener('wheel', handleUserInterrupt);
+      dom.removeEventListener('touchstart', handleUserInterrupt);
+    };
+  }, [gl, onArrive]);
 
   useFrame(({ camera }) => {
     if (!targetPos || !controlsRef?.current || !isMovingRef.current) return;
@@ -101,27 +130,104 @@ function CinematicCameraController({ targetPos, controlsRef, onArrive }) {
 }
 
 // Outline-Bound Zoom Controller:
-// - Inside the 3D globe outline: enableZoom = true (mouse wheel zooms globe)
-// - Outside the 3D globe outline: enableZoom = false (mouse wheel scrolls webpage)
+// Restricts touch/zoom/rotation strictly to the outer contour/outline of the 3D globe (or 3D column).
+// Touching or scrolling outside the globe's outline allows the entire web page to scroll freely.
 function GlobeOutlineZoomController({ controlsRef, viewMode }) {
-  const globeSphere = useMemo(() => new THREE.Sphere(new THREE.Vector3(0, 0, 0), 2.56), []);
-  const columnBox = useMemo(() => new THREE.Box3(new THREE.Vector3(-1.8, -2.5, -1.8), new THREE.Vector3(1.8, 1.5, 1.8)), []);
+  const { camera, gl } = useThree();
 
-  useFrame(({ raycaster }) => {
-    if (!controlsRef?.current) return;
+  useEffect(() => {
+    const dom = gl?.domElement;
+    if (!dom) return;
 
-    if (viewMode === 'globe') {
-      const isOverGlobe = raycaster.ray.intersectsSphere(globeSphere);
-      if (controlsRef.current.enableZoom !== isOverGlobe) {
-        controlsRef.current.enableZoom = isOverGlobe;
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    // Globe mesh radius is 2.5; 2.58 perfectly matches the outer atmospheric silhouette edge
+    const globeSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 2.58);
+    const columnBox = new THREE.Box3(
+      new THREE.Vector3(-1.8, -2.6, -1.8),
+      new THREE.Vector3(1.8, 1.6, 1.8)
+    );
+
+    let isInteracting = false;
+    let wheelTimer = null;
+
+    const checkInside = (clientX, clientY) => {
+      const rect = dom.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return false;
+      const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      pointer.set(x, y);
+      raycaster.setFromCamera(pointer, camera);
+
+      if (viewMode === 'column') {
+        return raycaster.ray.intersectsBox(columnBox);
       }
-    } else {
-      const isOverColumn = raycaster.ray.intersectsBox(columnBox);
-      if (controlsRef.current.enableZoom !== isOverColumn) {
-        controlsRef.current.enableZoom = isOverColumn;
+      return raycaster.ray.intersectsSphere(globeSphere);
+    };
+
+    const updateControlsState = (inside) => {
+      const controls = controlsRef?.current;
+      if (controls) {
+        controls.enableZoom = inside;
+        controls.enableRotate = inside;
+        controls.enablePan = inside;
       }
-    }
-  });
+      dom.style.cursor = inside ? 'grab' : 'default';
+      dom.style.touchAction = inside ? 'none' : 'pan-y';
+    };
+
+    const handlePointerMove = (e) => {
+      if (isInteracting || e.buttons > 0) return;
+      const inside = checkInside(e.clientX, e.clientY);
+      updateControlsState(inside);
+    };
+
+    const handlePointerDown = (e) => {
+      const inside = checkInside(e.clientX, e.clientY);
+      isInteracting = inside;
+      updateControlsState(inside);
+    };
+
+    const handlePointerUp = () => {
+      isInteracting = false;
+    };
+
+    const handleWheel = (e) => {
+      if (!isInteracting) {
+        const inside = checkInside(e.clientX, e.clientY);
+        if (inside) {
+          isInteracting = true;
+          updateControlsState(true);
+        } else {
+          updateControlsState(false);
+          return;
+        }
+      }
+
+      // Maintain lock during continuous mouse-wheel zoom so zooming out doesn't abruptly drop out
+      clearTimeout(wheelTimer);
+      wheelTimer = setTimeout(() => {
+        isInteracting = false;
+        const inside = checkInside(e.clientX, e.clientY);
+        updateControlsState(inside);
+      }, 250);
+    };
+
+    dom.addEventListener('pointermove', handlePointerMove, { passive: true });
+    dom.addEventListener('pointerdown', handlePointerDown, { passive: true });
+    dom.addEventListener('pointerup', handlePointerUp, { passive: true });
+    dom.addEventListener('pointercancel', handlePointerUp, { passive: true });
+    dom.addEventListener('wheel', handleWheel, { passive: true });
+
+    return () => {
+      clearTimeout(wheelTimer);
+      dom.removeEventListener('pointermove', handlePointerMove);
+      dom.removeEventListener('pointerdown', handlePointerDown);
+      dom.removeEventListener('pointerup', handlePointerUp);
+      dom.removeEventListener('pointercancel', handlePointerUp);
+      dom.removeEventListener('wheel', handleWheel);
+    };
+  }, [camera, gl, controlsRef, viewMode]);
 
   return null;
 }
@@ -166,6 +272,17 @@ export default function OceanScene({
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [hoveredStation, setHoveredStation] = useState(null);
+
+  // 🇮🇳 India EEZ & Subsurface 3D Laser Transect state
+  const [showEEZ, setShowEEZ] = useState(true);
+  const [showLaserTransect, setShowLaserTransect] = useState(false);
+  const [activeTransectId, setActiveTransectId] = useState('as-transect');
+  const [selectedEEZSector, setSelectedEEZSector] = useState(null);
+
+  // 🌐 Scientific Bounding Graticule, Scale Mode & Physical Range
+  const [showGraticule, setShowGraticule] = useState(false);
+  const [scaleMode, setScaleMode] = useState('linear'); // 'linear' | 'log10'
+  const [customRange, setCustomRange] = useState({ min: '', max: '' });
 
   // Active data mode: 'model' | 'insitu' | 'difference'
   const [activeDataMode, setActiveDataMode] = useState(dataSource || 'model');
@@ -397,14 +514,15 @@ export default function OceanScene({
     };
   }, [activeLayerData, activeDataMode]);
 
-  // Dynamic Colormap scale bounds computed strictly from real data
+  // Dynamic Colormap scale bounds computed strictly from real data with custom override & log10 support
   const dynamicColorBounds = useMemo(() => {
+    let baseBounds;
     // 1. Density (Pink colormap)
     if (primaryVariable === 'density') {
       const vals = realProfile?.map(p => p.density).filter(v => v !== null && !isNaN(v)) || [];
       const minD = vals.length > 0 ? Math.min(...vals) - 0.05 : 1023.2;
       const maxD = vals.length > 0 ? Math.max(...vals) + 0.05 : 1024.1;
-      return { 
+      baseBounds = { 
         min: +minD.toFixed(2), 
         max: +maxD.toFixed(2), 
         unit: 'kg/m³', 
@@ -412,14 +530,12 @@ export default function OceanScene({
         gradient: 'from-pink-200 via-pink-400 via-rose-500 to-pink-950',
         accent: '#ec4899'
       };
-    }
-
-    // 2. Salinity
-    if (primaryVariable === 'so') {
+    } else if (primaryVariable === 'so') {
+      // 2. Salinity
       const vals = realProfile?.map(p => p.salinity).filter(v => v !== null && !isNaN(v)) || [];
       const minS = vals.length > 0 ? Math.min(...vals) - 0.15 : 34.20;
       const maxS = vals.length > 0 ? Math.max(...vals) + 0.15 : 35.80;
-      return { 
+      baseBounds = { 
         min: +minS.toFixed(2), 
         max: +maxS.toFixed(2), 
         unit: 'PSU', 
@@ -427,51 +543,86 @@ export default function OceanScene({
         gradient: 'from-amber-300 via-emerald-400 via-teal-400 to-blue-950',
         accent: '#10b981'
       };
-    }
-
-    // 3. Current Velocity
-    if (primaryVariable === 'current_speed' || primaryVariable === 'uo') {
+    } else if (primaryVariable === 'current_speed' || primaryVariable === 'uo' || primaryVariable === 'currents') {
+      // 3. Current Velocity
       const vals = realProfile?.map(p => p.current_speed).filter(v => v !== null && !isNaN(v)) || [];
       const minV = vals.length > 0 ? Math.min(...vals) - 0.04 : 0.05;
       const maxV = vals.length > 0 ? Math.max(...vals) + 0.08 : 0.45;
-      return { 
+      baseBounds = { 
         min: Math.max(0, +minV.toFixed(2)), 
         max: +maxV.toFixed(2), 
         unit: 'm/s', 
         label: 'Current Speed', 
-        gradient: 'from-white via-cyan-300 via-sky-500 to-blue-950',
-        accent: '#00f0ff'
+        gradient: 'from-purple-900 via-blue-500 via-cyan-400 via-green-400 via-yellow-400 to-red-500',
+        accent: '#22c55e'
       };
-    }
-
-    // 4. Chlorophyll-a (BGC)
-    if (primaryVariable === 'chlorophyll' || primaryVariable === 'chl') {
+    } else if (primaryVariable === 'chlorophyll' || primaryVariable === 'chl') {
+      // 4. Chlorophyll-a (BGC)
       const vals = realProfile?.map(p => p.chlorophyll).filter(v => v !== null && !isNaN(v)) || [];
       const minC = vals.length > 0 ? Math.min(...vals) : 0.05;
       const maxC = vals.length > 0 ? Math.max(...vals) : 2.80;
-      return { 
+      baseBounds = { 
         min: +minC.toFixed(2), 
         max: +maxC.toFixed(2), 
         unit: 'mg/m³', 
         label: 'Chlorophyll-a', 
-        gradient: 'from-amber-200 via-emerald-400 via-teal-600 to-slate-950',
+        gradient: 'from-slate-950 via-teal-700 via-emerald-500 via-lime-400 to-amber-200',
         accent: '#10b981'
+      };
+    } else {
+      // 5. Temperature (Default)
+      const vals = realProfile?.map(p => p.temperature).filter(v => v !== null && !isNaN(v)) || [];
+      const minT = vals.length > 0 ? Math.min(...vals) - 0.20 : 28.50;
+      const maxT = vals.length > 0 ? Math.max(...vals) + 0.20 : 31.50;
+      baseBounds = { 
+        min: +minT.toFixed(2), 
+        max: +maxT.toFixed(2), 
+        unit: '°C', 
+        label: 'Temperature', 
+        gradient: 'from-blue-950 via-cyan-400 via-yellow-400 via-orange-400 to-red-500',
+        accent: '#f59e0b'
       };
     }
 
-    // 5. Temperature (Default)
-    const vals = realProfile?.map(p => p.temperature).filter(v => v !== null && !isNaN(v)) || [];
-    const minT = vals.length > 0 ? Math.min(...vals) - 0.20 : 28.50;
-    const maxT = vals.length > 0 ? Math.max(...vals) + 0.20 : 31.50;
+    const baseMin = baseBounds.min;
+    const baseMax = baseBounds.max;
+
+    const effectiveMin = customRange.min !== '' && !isNaN(customRange.min) ? Number(customRange.min) : baseMin;
+    const effectiveMax = customRange.max !== '' && !isNaN(customRange.max) ? Number(customRange.max) : baseMax;
+
+    let ticks = [];
+    if (scaleMode === 'log10') {
+      const safeMin = Math.max(0.01, effectiveMin);
+      const safeMax = Math.max(0.02, effectiveMax);
+      const logMin = Math.log10(safeMin);
+      const logMax = Math.log10(safeMax);
+      ticks = [
+        effectiveMin,
+        +(Math.pow(10, logMin + (logMax - logMin) * 0.25)).toFixed(2),
+        +(Math.pow(10, logMin + (logMax - logMin) * 0.50)).toFixed(2),
+        +(Math.pow(10, logMin + (logMax - logMin) * 0.75)).toFixed(2),
+        effectiveMax
+      ];
+    } else {
+      ticks = [
+        effectiveMin,
+        +(effectiveMin + (effectiveMax - effectiveMin) * 0.25).toFixed(2),
+        +(effectiveMin + (effectiveMax - effectiveMin) * 0.50).toFixed(2),
+        +(effectiveMin + (effectiveMax - effectiveMin) * 0.75).toFixed(2),
+        effectiveMax
+      ];
+    }
+
     return { 
-      min: +minT.toFixed(2), 
-      max: +maxT.toFixed(2), 
-      unit: '°C', 
-      label: 'Temperature', 
-      gradient: 'from-red-500 via-orange-400 via-yellow-400 via-cyan-400 to-blue-950',
-      accent: '#f59e0b'
+      ...baseBounds,
+      autoMin: baseMin,
+      autoMax: baseMax,
+      min: effectiveMin,
+      max: effectiveMax,
+      ticks,
+      isCustom: (customRange.min !== '' && !isNaN(customRange.min)) || (customRange.max !== '' && !isNaN(customRange.max))
     };
-  }, [realProfile, primaryVariable, activeDataMode]);
+  }, [realProfile, primaryVariable, activeDataMode, customRange, scaleMode]);
 
   // Time Animation Stepper: Advances through actual NetCDF dates when playing
   useEffect(() => {
@@ -496,8 +647,8 @@ export default function OceanScene({
 
     // Keep globe centered: Camera targets station directly along spherical shell
     const targetCameraDir = latLonToVector3(latV, lonV, 1.0).normalize();
-    // Close inspection zoom: distance 3.82
-    const zoomDist = 3.82;
+    // Balanced inspection zoom: distance 4.65 (comfortable view, no suffocating over-zoom)
+    const zoomDist = 4.65;
     const pos = targetCameraDir.multiplyScalar(zoomDist);
     setCameraTargetPos(pos);
   }, []);
@@ -542,8 +693,14 @@ export default function OceanScene({
         <div 
           className="absolute inset-0 z-0"
           onPointerLeave={() => {
-            if (globeControlsRef.current) globeControlsRef.current.enableZoom = false;
-            if (columnControlsRef.current) columnControlsRef.current.enableZoom = false;
+            if (globeControlsRef.current) {
+              globeControlsRef.current.enableZoom = false;
+              globeControlsRef.current.enableRotate = false;
+            }
+            if (columnControlsRef.current) {
+              columnControlsRef.current.enableZoom = false;
+              columnControlsRef.current.enableRotate = false;
+            }
           }}
           onWheel={(e) => {
             const activeControls = viewMode === 'globe' ? globeControlsRef.current : columnControlsRef.current;
@@ -571,7 +728,7 @@ export default function OceanScene({
               />
 
               {/* 3D Model Spatial Grid (Copernicus GLORYS12V1 Point Cloud) */}
-              {gridPoints && gridPoints.length > 0 && (
+              {showGraticule && gridPoints && gridPoints.length > 0 && (
                 <Copernicus3DLayer
                   gridPoints={gridPoints}
                   primaryVariable={primaryVariable}
@@ -628,6 +785,28 @@ export default function OceanScene({
                 />
               ))}
 
+              {/* 🇮🇳 Official Indian Exclusive Economic Zone (2.37M km² Sovereign Maritime Boundary) */}
+              <IndiaEEZLayer
+                visible={showEEZ && viewMode === 'globe'}
+                showBadges={true}
+                onSelectSector={(sector) => {
+                  setSelectedEEZSector(sector);
+                  flyToStation({ lat: sector.lat, lon: sector.lon });
+                }}
+              />
+
+              {/* ⚡ 3D Subsurface Laser Transect Curtain (0-2000m Depth Stratification) */}
+              <SubsurfaceLaserTransect
+                visible={showLaserTransect && viewMode === 'globe'}
+                activeTransectId={activeTransectId}
+              />
+
+              {/* 🌐 Scientific Bounding Graticule Box & Equatorial Jet Vectors */}
+              <OceanDataGraticule
+                visible={showGraticule && viewMode === 'globe'}
+                showVectors={layers.currents !== false}
+              />
+
               <CinematicCameraController
                 targetPos={cameraTargetPos}
                 controlsRef={globeControlsRef}
@@ -637,12 +816,13 @@ export default function OceanScene({
               <OrbitControls
                 ref={globeControlsRef}
                 enableDamping
-                dampingFactor={0.06}
+                dampingFactor={0.08}
                 autoRotate={isAutoRotate}
-                autoRotateSpeed={1.2}
-                minDistance={3.2}
-                maxDistance={9.5}
-                rotateSpeed={0.5}
+                autoRotateSpeed={1.0}
+                zoomSpeed={0.7}
+                rotateSpeed={0.55}
+                minDistance={3.0}
+                maxDistance={10.0}
                 target={[0, 0, 0]}
               />
             </Canvas>
@@ -690,7 +870,8 @@ export default function OceanScene({
               <OrbitControls
                 ref={columnControlsRef}
                 enableDamping
-                dampingFactor={0.06}
+                dampingFactor={0.08}
+                zoomSpeed={0.7}
                 minDistance={2.5}
                 maxDistance={10.0}
                 target={[0, -0.35, 0]}
@@ -715,133 +896,202 @@ export default function OceanScene({
           }}
         />
         {/* ============================================================ */}
-        {/* 2. TOP-LEFT CORNER INSPECTED STATION & MODEL BADGE          */}
+        {/* UNIFIED TOP CONTROL BAR (RESPONSIVE FLEX - ZERO OVERLAP)     */}
         {/* ============================================================ */}
-        <div className="absolute top-3 left-3 z-20 pointer-events-none flex flex-col gap-1 max-w-[55%]">
-          <div className="flex items-center gap-2 bg-[#090b14]/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-indigo-500/30 shadow-2xl overflow-hidden">
-            <span className={`w-2 h-2 rounded-full shrink-0 ${displayStationData.isHovered ? 'bg-amber-400 animate-ping' : 'bg-indigo-400 animate-pulse'}`} />
-            <div className="flex items-center gap-2 text-[10px] font-mono truncate">
-              <span className="text-indigo-300 font-bold">
-                {displayStationData.isHovered ? 'INSPECTING' : 'STATION'}:
+        <div className="absolute top-3 inset-x-3 z-30 pointer-events-none flex items-center justify-between gap-2">
+          
+          {/* Left: Compact Inspected Station Badge */}
+          <div className="pointer-events-auto flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1.5 bg-[#090b14]/90 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-indigo-500/30 shadow-2xl text-[10px] font-mono">
+              <span className={`w-2 h-2 rounded-full shrink-0 ${displayStationData.isHovered ? 'bg-amber-400 animate-ping' : 'bg-indigo-400 animate-pulse'}`} />
+              <span className="text-indigo-300 font-bold hidden sm:inline">
+                {displayStationData.isHovered ? 'INSPECT:' : 'STN:'}
               </span>
               <span className="text-amber-300 font-bold">{displayStationData.code}</span>
-              <span className="text-slate-400 hidden sm:inline">
-                ({displayStationData.lat.toFixed(2)}°N, {displayStationData.lon.toFixed(2)}°E)
-              </span>
               <span className="text-slate-500">•</span>
-              <span className="text-violet-300 font-bold">{Number(internalDepth).toFixed(2)}m</span>
-              <span className="text-indigo-300 text-[9px] px-1.5 py-0.2 rounded bg-indigo-950/70 border border-indigo-500/30 font-semibold hidden md:inline">
-                Copernicus GLORYS12V1
-              </span>
+              <span className="text-violet-300 font-bold">{Number(internalDepth).toFixed(1)}m</span>
             </div>
+
+            {isLoadingRealData && (
+              <div className="flex items-center gap-1.5 bg-indigo-950/90 px-2 py-1 rounded-xl text-[9px] font-mono text-indigo-300 border border-indigo-500/40 animate-pulse hidden md:flex">
+                <Activity className="h-3 w-3 animate-spin" />
+                <span>Streaming...</span>
+              </div>
+            )}
           </div>
 
-          {/* Loading or Unavailable Indicator */}
-          {isLoadingRealData && (
-            <div className="flex items-center gap-1.5 bg-indigo-950/90 px-2 py-0.5 rounded text-[9.5px] font-mono text-indigo-300 border border-indigo-500/40 animate-pulse w-fit">
-              <Activity className="h-3 w-3 animate-spin" />
-              <span>Streaming Copernicus NetCDF slices...</span>
+          {/* Center: 3D View Switcher (Earth Globe vs Water Column Cutaway) */}
+          <div className="pointer-events-auto flex items-center p-1 rounded-2xl bg-[#090b14]/95 backdrop-blur-xl border border-indigo-500/40 shadow-[0_0_20px_rgba(99,102,241,0.25)] shrink-0">
+            <button
+              type="button"
+              onClick={() => setViewMode('globe')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                viewMode === 'globe'
+                  ? 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-500/40 ring-1 ring-white/30'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Globe2 className="w-4 h-4 text-indigo-200" />
+              <span>3D Earth Globe</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setViewMode('column')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                viewMode === 'column'
+                  ? 'bg-gradient-to-r from-violet-600 via-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-500/40 ring-1 ring-white/30'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Box className="w-4 h-4 text-violet-200" />
+              <span>3D Water Column</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-purple-950/80 text-purple-300 border border-purple-400/40 font-mono hidden sm:inline">
+                Cutaway
+              </span>
+            </button>
+          </div>
+
+          {/* Right: Quick Tools (EEZ, Transect, Rotate, Zoom, Reset, Fullscreen) */}
+          <div className="pointer-events-auto flex items-center gap-1 bg-[#090b14]/85 backdrop-blur-md p-1 rounded-xl border border-indigo-500/30 shadow-2xl text-xs font-sans text-slate-200 shrink-0">
+            {/* 🇮🇳 India EEZ Toggle */}
+            {viewMode === 'globe' && (
+              <button
+                type="button"
+                onClick={() => setShowEEZ(!showEEZ)}
+                className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  showEEZ
+                    ? 'bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 text-white shadow-md shadow-sky-500/40 ring-1 ring-sky-300/40'
+                    : 'hover:bg-slate-800/60 text-slate-400 hover:text-white'
+                }`}
+                title="Toggle Official Indian Exclusive Economic Zone (2.37 Million km²)"
+              >
+                <span>🇮🇳</span>
+                <span className="hidden xl:inline">India EEZ</span>
+              </button>
+            )}
+
+            {/* ⚡ 3D Subsurface Vertical Cross-Section Slice Toggle */}
+            {viewMode === 'globe' && (
+              <button
+                type="button"
+                onClick={() => setShowLaserTransect(!showLaserTransect)}
+                className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  showLaserTransect
+                    ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white shadow-md shadow-cyan-500/40 ring-1 ring-cyan-300/40'
+                    : 'hover:bg-slate-800/60 text-slate-400 hover:text-white'
+                }`}
+                title="Toggle 3D Subsurface Vertical Cross-Section Slice (0 to 2000m Depth)"
+              >
+                <span className="text-cyan-300">⚡</span>
+                <span className="hidden xl:inline">Depth Slice (0-2000m)</span>
+              </button>
+            )}
+
+            {/* Scientific NetCDF Lat-Lon Grid Toggle */}
+            {viewMode === 'globe' && (
+              <button
+                type="button"
+                onClick={() => setShowGraticule(!showGraticule)}
+                className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  showGraticule
+                    ? 'bg-sky-600/80 text-white shadow-xs ring-1 ring-sky-300/40'
+                    : 'hover:bg-slate-800/60 text-slate-400 hover:text-white'
+                }`}
+                title="Toggle Scientific Lat/Lon Bounding Grid (50°E-100°E, 10°S-25°N)"
+              >
+                <Compass className="h-3 w-3 text-sky-300" />
+                <span className="hidden xl:inline">NetCDF Grid</span>
+              </button>
+            )}
+
+            {/* Rotate Toggle */}
+            <button
+              type="button"
+              onClick={() => setIsAutoRotate(!isAutoRotate)}
+              className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                isAutoRotate ? 'bg-indigo-600/80 text-white shadow-xs' : 'hover:bg-slate-800/50 text-slate-300 hover:text-white'
+              }`}
+              title="Auto-rotate Earth"
+            >
+              <RotateCcw className={`h-3 w-3 ${isAutoRotate ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Rotate</span>
+            </button>
+
+            {/* Zoom Controls */}
+            <button
+              type="button"
+              onClick={() => handleZoom(0.85)}
+              title="Zoom In"
+              className="p-1 rounded-lg hover:bg-slate-800/50 text-slate-300 hover:text-white transition-colors cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleZoom(1.18)}
+              title="Zoom Out"
+              className="p-1 rounded-lg hover:bg-slate-800/50 text-slate-300 hover:text-white transition-colors cursor-pointer"
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </button>
+
+            {/* Reset View */}
+            <button
+              type="button"
+              onClick={handleResetGlobe}
+              className="px-2 py-1 rounded-lg hover:bg-slate-800/50 text-slate-300 hover:text-white text-xs transition-colors flex items-center gap-1 cursor-pointer"
+              title="Reset camera angle"
+            >
+              <Compass className="h-3 w-3" />
+              <span className="hidden sm:inline">Reset</span>
+            </button>
+
+            {/* Fullscreen Toggle */}
+            <button
+              type="button"
+              onClick={handleToggleFullscreen}
+              title="Fullscreen"
+              className="p-1 rounded-lg hover:bg-slate-800/50 text-slate-300 hover:text-white transition-colors cursor-pointer"
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Selected EEZ Sector Info Card */}
+        {selectedEEZSector && (
+          <div className="absolute top-16 left-3 z-30 pointer-events-auto bg-[#040e22]/95 backdrop-blur-xl border border-sky-400/50 rounded-2xl p-3.5 shadow-2xl shadow-sky-950/80 max-w-xs animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center justify-between pb-2 border-b border-sky-500/20 mb-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm">🇮🇳</span>
+                <strong className="text-xs font-bold text-sky-200">Indian EEZ Maritime Sector</strong>
+              </div>
+              <button 
+                onClick={() => setSelectedEEZSector(null)}
+                className="p-0.5 rounded text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
-          )}
-          {!dataAvailable && !isLoadingRealData && (
-            <div className="flex items-center gap-1 bg-rose-950/90 px-2 py-0.5 rounded text-[9.5px] font-mono text-rose-300 border border-rose-500/40 w-fit">
-              <AlertCircle className="h-3 w-3" />
-              <span>No real data available</span>
+            <div className="space-y-1.5 text-[11px] font-sans">
+              <div className="text-sm font-black text-white">{selectedEEZSector.name}</div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono text-sky-300 bg-sky-950/80 px-1.5 py-0.5 rounded border border-sky-500/30">
+                  Area: {selectedEEZSector.area}
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">UNCLOS 200nm</span>
+              </div>
+              <p className="text-[10.5px] text-slate-300 leading-snug">
+                {selectedEEZSector.zone}
+              </p>
+              <div className="p-2 rounded-lg bg-sky-950/40 border border-sky-500/20 text-[10px] text-sky-300">
+                <strong className="block text-sky-200 mb-0.5">Oceanographic Focus:</strong>
+                {selectedEEZSector.keyAspect}
+              </div>
             </div>
-          )}
-        </div>
-
-        {/* ============================================================ */}
-        {/* PROMINENT TOP-CENTER 3D VIEW SWITCHER (AURORA INDIGO)        */}
-        {/* ============================================================ */}
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex items-center p-1 rounded-2xl bg-[#090b14]/90 backdrop-blur-xl border border-indigo-500/40 shadow-[0_0_25px_rgba(99,102,241,0.25)]">
-          <button
-            type="button"
-            onClick={() => setViewMode('globe')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-              viewMode === 'globe'
-                ? 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-500/40 ring-1 ring-white/30'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <Globe2 className="w-4 h-4 text-indigo-200" />
-            <span>3D Earth Globe</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setViewMode('column')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-              viewMode === 'column'
-                ? 'bg-gradient-to-r from-violet-600 via-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-500/40 ring-1 ring-white/30'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <Box className="w-4 h-4 text-violet-200" />
-            <span>3D Water Column</span>
-            <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-purple-950/80 text-purple-300 border border-purple-400/40 font-mono hidden sm:inline">
-              Cutaway
-            </span>
-          </button>
-        </div>
-
-        {/* ============================================================ */}
-        {/* 3. TOP FLOATING TOOLS BAR (ROTATE, ZOOM, RESET, FULLSCREEN)  */}
-        {/* ============================================================ */}
-        <div className="absolute top-3 right-3 z-20 pointer-events-auto flex items-center gap-1 bg-[#090b14]/60 backdrop-blur-md p-1.5 rounded-xl border border-indigo-500/25 shadow-2xl text-xs font-sans text-slate-200">
-          
-          {/* Rotate Toggle */}
-          <button
-            type="button"
-            onClick={() => setIsAutoRotate(!isAutoRotate)}
-            className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
-              isAutoRotate ? 'bg-indigo-600/80 text-white shadow-xs' : 'hover:bg-slate-800/50 text-slate-300 hover:text-white'
-            }`}
-            title="Auto-rotate Earth"
-          >
-            <RotateCcw className={`h-3 w-3 ${isAutoRotate ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Rotate</span>
-          </button>
-
-          {/* Zoom Controls */}
-          <button
-            type="button"
-            onClick={() => handleZoom(0.85)}
-            title="Zoom In"
-            className="p-1 rounded-lg hover:bg-slate-800/50 text-slate-300 hover:text-white transition-colors cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => handleZoom(1.18)}
-            title="Zoom Out"
-            className="p-1 rounded-lg hover:bg-slate-800/50 text-slate-300 hover:text-white transition-colors cursor-pointer"
-          >
-            <Minus className="h-3.5 w-3.5" />
-          </button>
-
-          {/* Reset View */}
-          <button
-            type="button"
-            onClick={handleResetGlobe}
-            className="px-2 py-1 rounded-lg hover:bg-slate-800/50 text-slate-300 hover:text-white text-xs transition-colors flex items-center gap-1 cursor-pointer"
-            title="Reset camera angle"
-          >
-            <Compass className="h-3 w-3" />
-            <span className="hidden sm:inline">Reset</span>
-          </button>
-
-          {/* Fullscreen Toggle */}
-          <button
-            type="button"
-            onClick={handleToggleFullscreen}
-            title="Fullscreen"
-            className="p-1 rounded-lg hover:bg-slate-800/50 text-slate-300 hover:text-white transition-colors cursor-pointer"
-          >
-            <Maximize2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
+          </div>
+        )}
 
         {/* ============================================================ */}
         {/* DYNAMIC TELEMETRY DISPLAY (FLY IN ONE-BY-ONE INTO LEFT HUD)  */}
@@ -1009,122 +1259,200 @@ export default function OceanScene({
         </div>
 
         {/* ============================================================ */}
-        {/* 4. DYNAMIC COLORMAP SCALE BAR (COMPACT, SLEEK VERTICAL BAR)  */}
+        {/* 4. PHYSICAL RANGE & COLORMAP SCALE CONTROLLER (RIGHT HUD)     */}
         {/* ============================================================ */}
-        <div className="absolute left-3 top-[280px] z-20 pointer-events-none flex flex-col items-center bg-[#090b14]/60 backdrop-blur-md px-2 py-1.5 rounded-xl border border-indigo-500/25 shadow-xl">
-          <div className="text-[8.5px] font-bold text-slate-200 mb-1 font-sans text-center leading-tight">
-            {dynamicColorBounds.label}<br />
-            <span className="text-indigo-300 font-mono">[{dynamicColorBounds.unit}]</span>
-          </div>
-
-          <div className={`w-2.5 h-24 rounded-full bg-gradient-to-b ${dynamicColorBounds.gradient} shadow-inner relative flex flex-col justify-between py-1`}>
-            <span className="text-[7.5px] font-mono text-white font-bold pl-3 leading-none whitespace-nowrap">
-              {dynamicColorBounds.max}
-            </span>
-            <span className="text-[7px] font-mono text-slate-300 pl-3 leading-none whitespace-nowrap">
-              {+((dynamicColorBounds.max + dynamicColorBounds.min) / 2).toFixed(2)}
-            </span>
-            <span className="text-[7.5px] font-mono text-slate-300 pl-3 leading-none whitespace-nowrap">
-              {dynamicColorBounds.min}
-            </span>
-          </div>
-
-          <div className="mt-1 text-[7px] font-mono text-slate-400 text-center">
-            {viewMode === 'column' ? '3D Column' : 'Globe'}
-          </div>
-        </div>
-
         {/* ============================================================ */}
-        {/* 5. IN-VIEWPORT REAL DEPTH SCRUBBER SLIDER (COMPACT HUD CARD) */}
+        {/* 4. UNIFIED SCIENTIFIC CONTROLS HUD (DEPTH + PHYSICAL RANGE)  */}
         {/* ============================================================ */}
-        <div className="absolute right-3 top-16 z-20 pointer-events-auto bg-[#090b14]/85 backdrop-blur-md rounded-xl p-2.5 border border-indigo-500/30 shadow-xl flex flex-col gap-1.5 w-48 sm:w-52 font-sans">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-[10.5px] font-bold text-slate-100">
-              <Sliders className="h-3 w-3 text-indigo-400" />
-              <span>Depth Scrubber</span>
+        <div className="absolute right-3 top-14 z-20 pointer-events-auto bg-[#090b14]/90 backdrop-blur-md rounded-2xl p-2.5 border border-indigo-500/30 shadow-2xl flex flex-col gap-2 w-48 sm:w-52 font-sans">
+          
+          {/* SECTION A: DEPTH SCRUBBER (Z-AXIS) */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-100">
+                <Sliders className="h-3 w-3 text-indigo-400" />
+                <span>Depth Layer</span>
+              </div>
+              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-500/30 font-bold">
+                {Number(internalDepth).toFixed(2)}m
+              </span>
             </div>
-            <span className="text-[9.5px] font-mono px-1.5 py-0.2 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-500/30 font-bold">
-              {Number(internalDepth).toFixed(2)}m
-            </span>
-          </div>
 
-          {/* Quick Depth Presets (Copernicus 9-Layer NetCDF) */}
-          <div className="grid grid-cols-4 gap-1">
-            {[
-              { label: '0.49m', depth: 0.49 },
-              { label: '2.65m', depth: 2.65 },
-              { label: '5.08m', depth: 5.08 },
-              { label: '11.4m', depth: 11.40 }
-            ].map(preset => {
-              const isCurr = Math.abs(internalDepth - preset.depth) < 0.2;
-              return (
-                <button
-                  key={preset.label}
-                  type="button"
-                  onClick={() => handleDepthChange(preset.depth)}
-                  className={`py-0.5 px-1 rounded text-[8px] font-mono font-bold transition-all text-center cursor-pointer ${
-                    isCurr
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'bg-[#090b14]/60 hover:bg-slate-800/60 text-slate-300 border border-indigo-400/20'
-                  }`}
-                >
-                  {preset.label}
-                </button>
-              );
-            })}
-          </div>
+            {/* Quick Depth Presets */}
+            <div className="grid grid-cols-4 gap-1">
+              {[
+                { label: '0.49m', depth: 0.49 },
+                { label: '2.65m', depth: 2.65 },
+                { label: '5.08m', depth: 5.08 },
+                { label: '11.4m', depth: 11.40 }
+              ].map(preset => {
+                const isCurr = Math.abs(internalDepth - preset.depth) < 0.2;
+                return (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => handleDepthChange(preset.depth)}
+                    className={`py-0.5 px-1 rounded text-[8px] font-mono font-bold transition-all text-center cursor-pointer ${
+                      isCurr
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-[#090b14]/60 hover:bg-slate-800/60 text-slate-300 border border-indigo-400/20'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
 
-          {/* Smooth Depth Slider (0.49m to 11.40m Copernicus Layers) */}
-          <div className="flex flex-col gap-0.5">
-            <input
-              type="range"
-              min="0"
-              max={COPERNICUS_REAL_DEPTHS.length - 1}
-              step="1"
-              value={COPERNICUS_REAL_DEPTHS.indexOf(
-                COPERNICUS_REAL_DEPTHS.reduce((prev, curr) => 
-                  Math.abs(curr - internalDepth) < Math.abs(prev - internalDepth) ? curr : prev
-                )
+            {/* Smooth Depth Slider */}
+            <div className="flex flex-col gap-0.5">
+              <input
+                type="range"
+                min="0"
+                max={COPERNICUS_REAL_DEPTHS.length - 1}
+                step="1"
+                value={COPERNICUS_REAL_DEPTHS.indexOf(
+                  COPERNICUS_REAL_DEPTHS.reduce((prev, curr) => 
+                    Math.abs(curr - internalDepth) < Math.abs(prev - internalDepth) ? curr : prev
+                  )
+                )}
+                onChange={(e) => {
+                  const idx = parseInt(e.target.value, 10);
+                  const targetD = COPERNICUS_REAL_DEPTHS[idx];
+                  handleDepthChange(targetD);
+                }}
+                className="w-full h-1 bg-slate-800/70 rounded-lg appearance-none cursor-pointer accent-indigo-400"
+              />
+              <div className="flex justify-between text-[7px] font-mono text-slate-400">
+                <span>0.49m</span>
+                <span>2.65m</span>
+                <span>5.08m</span>
+                <span>7.93m</span>
+                <span>11.4m</span>
+              </div>
+            </div>
+
+            {/* Compact Telemetry Readout */}
+            <div className="flex items-center justify-between text-[8px] font-mono pt-1 border-t border-indigo-500/20 text-slate-300">
+              <span className={primaryVariable === 'thetao' || primaryVariable === 'sst' ? 'text-rose-300 font-extrabold px-1 rounded bg-rose-950/60 border border-rose-500/30' : ''}>
+                T: <strong className="text-rose-400">{displayedValues.tempStr}</strong>
+              </span>
+              <span className={primaryVariable === 'so' || primaryVariable === 'salinity' ? 'text-indigo-200 font-extrabold px-1 rounded bg-indigo-950/60 border border-indigo-500/30' : ''}>
+                S: <strong className="text-indigo-300">{displayedValues.salStr}</strong>
+              </span>
+              {primaryVariable === 'density' ? (
+                <span className="text-pink-200 font-extrabold px-1 rounded bg-pink-950/60 border border-pink-500/30">
+                  ρ: <strong className="text-pink-400">{displayedValues.densityStr}</strong>
+                </span>
+              ) : (primaryVariable === 'chlorophyll' || primaryVariable === 'chl') ? (
+                <span className="text-emerald-200 font-extrabold px-1 rounded bg-emerald-950/60 border border-emerald-500/30">
+                  Chl: <strong className="text-emerald-300">{displayedValues.chlStr || `${Number(currentStn?.chlorophyll ?? 1.45).toFixed(2)} mg/m³`}</strong>
+                </span>
+              ) : (
+                <span className={primaryVariable === 'current_speed' || primaryVariable === 'uo' || primaryVariable === 'currents' ? 'text-cyan-200 font-extrabold px-1 rounded bg-cyan-950/60 border border-cyan-500/30' : ''}>
+                  V: <strong className="text-sky-300">{displayedValues.speedStr}</strong>
+                </span>
               )}
-              onChange={(e) => {
-                const idx = parseInt(e.target.value, 10);
-                const targetD = COPERNICUS_REAL_DEPTHS[idx];
-                handleDepthChange(targetD);
-              }}
-              className="w-full h-1 bg-slate-800/70 rounded-lg appearance-none cursor-pointer accent-indigo-400"
-            />
-            <div className="flex justify-between text-[7px] font-mono text-slate-400">
-              <span>0.49m</span>
-              <span>2.65m</span>
-              <span>5.08m</span>
-              <span>7.93m</span>
-              <span>11.40m</span>
             </div>
           </div>
 
-          {/* 1-Row Compact Stats Readout highlighting active primaryVariable */}
-          <div className="flex items-center justify-between text-[8.5px] font-mono pt-1 border-t border-indigo-500/20 text-slate-300">
-            <span className={primaryVariable === 'thetao' || primaryVariable === 'sst' ? 'text-rose-300 font-extrabold px-1 rounded bg-rose-950/60 border border-rose-500/30' : ''}>
-              T: <strong className="text-rose-400">{displayedValues.tempStr}</strong>
-            </span>
-            <span className={primaryVariable === 'so' || primaryVariable === 'salinity' ? 'text-indigo-200 font-extrabold px-1 rounded bg-indigo-950/60 border border-indigo-500/30' : ''}>
-              S: <strong className="text-indigo-300">{displayedValues.salStr}</strong>
-            </span>
-            {primaryVariable === 'density' ? (
-              <span className="text-pink-200 font-extrabold px-1 rounded bg-pink-950/60 border border-pink-500/30">
-                ρ: <strong className="text-pink-400">{displayedValues.densityStr}</strong>
-              </span>
-            ) : (primaryVariable === 'chlorophyll' || primaryVariable === 'chl') ? (
-              <span className="text-emerald-200 font-extrabold px-1 rounded bg-emerald-950/60 border border-emerald-500/30">
-                Chl: <strong className="text-emerald-300">{displayedValues.chlStr || `${Number(currentStn?.chlorophyll ?? 1.45).toFixed(2)} mg/m³`}</strong>
-              </span>
-            ) : (
-              <span className={primaryVariable === 'current_speed' || primaryVariable === 'uo' || primaryVariable === 'currents' ? 'text-cyan-200 font-extrabold px-1 rounded bg-cyan-950/60 border border-cyan-500/30' : ''}>
-                V: <strong className="text-sky-300">{displayedValues.speedStr}</strong>
-              </span>
-            )}
+          {/* SECTION B: PHYSICAL RANGE & COLORMAP */}
+          <div className="flex flex-col gap-1.5 pt-2 border-t border-indigo-500/25">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1 text-[10px] font-bold text-slate-100">
+                <Palette className="h-3 w-3 text-cyan-400" />
+                <span>Physical Range</span>
+              </div>
+              
+              <div className="flex items-center p-0.5 rounded-lg bg-slate-950/80 border border-indigo-500/30">
+                <button
+                  type="button"
+                  onClick={() => setScaleMode('linear')}
+                  className={`px-1.5 py-0.5 rounded text-[7.5px] font-mono font-bold transition-all cursor-pointer ${
+                    scaleMode === 'linear'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Linear scale"
+                >
+                  Linear
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScaleMode('log10')}
+                  className={`px-1.5 py-0.5 rounded text-[7.5px] font-mono font-bold transition-all cursor-pointer ${
+                    scaleMode === 'log10'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Logarithmic scale for high dynamic range variables (Chlorophyll, Velocity)"
+                >
+                  Log₁₀
+                </button>
+              </div>
+            </div>
+
+            {/* Min Bound, Max Bound & Auto-Reset Button */}
+            <div className="grid grid-cols-5 gap-1 items-end text-[8px] font-mono">
+              <div className="col-span-2 flex flex-col gap-0.5">
+                <span className="text-slate-400 text-[6.5px] font-sans">Min Bound</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder={String(dynamicColorBounds.autoMin)}
+                  value={customRange.min}
+                  onChange={(e) => setCustomRange(prev => ({ ...prev, min: e.target.value }))}
+                  className="w-full bg-[#030914]/90 border border-indigo-500/30 focus:border-cyan-400 rounded px-1 py-0.5 text-slate-100 text-[8px] font-mono outline-hidden"
+                />
+              </div>
+              <div className="col-span-2 flex flex-col gap-0.5">
+                <span className="text-slate-400 text-[6.5px] font-sans">Max Bound</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder={String(dynamicColorBounds.autoMax)}
+                  value={customRange.max}
+                  onChange={(e) => setCustomRange(prev => ({ ...prev, max: e.target.value }))}
+                  className="w-full bg-[#030914]/90 border border-indigo-500/30 focus:border-cyan-400 rounded px-1 py-0.5 text-slate-100 text-[8px] font-mono outline-hidden"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setCustomRange({ min: '', max: '' })}
+                className={`col-span-1 py-1 px-1 rounded border text-[7px] font-bold transition-all flex items-center justify-center gap-0.5 cursor-pointer ${
+                  dynamicColorBounds.isCustom
+                    ? 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-400/40 text-amber-300'
+                    : 'bg-indigo-500/20 hover:bg-indigo-500/40 border-indigo-400/30 text-indigo-300 hover:text-white'
+                }`}
+                title="Reset to computed NetCDF bounds"
+              >
+                <RotateCcw className="w-2.5 h-2.5" />
+                <span>Auto</span>
+              </button>
+            </div>
+
+            {/* Horizontal Colormap Bar & Numerical Ticks */}
+            <div className="flex flex-col gap-1 pt-1 border-t border-indigo-500/20">
+              <div className="flex items-center justify-between text-[7px] font-mono">
+                <span className="text-slate-300 font-semibold uppercase truncate max-w-[95px]">
+                  {dynamicColorBounds.label}
+                </span>
+                <span className="text-cyan-300 font-bold">
+                  {dynamicColorBounds.min} – {dynamicColorBounds.max} {dynamicColorBounds.unit}
+                </span>
+              </div>
+              
+              <div className={`w-full h-2 rounded-full bg-gradient-to-r ${dynamicColorBounds.gradient} shadow-inner border border-white/20`} />
+              
+              <div className="flex justify-between text-[6.5px] font-mono text-slate-300">
+                {dynamicColorBounds.ticks.map((t, idx) => (
+                  <span key={idx}>{t}</span>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
+
 
         {/* ============================================================ */}
         {/* 6. DOCKED IN-SITU PROBE TELEMETRY CARD (CLEAN BOTTOM-LEFT)   */}

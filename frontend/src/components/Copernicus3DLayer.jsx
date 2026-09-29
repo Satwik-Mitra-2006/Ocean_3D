@@ -272,15 +272,15 @@ export default function Copernicus3DLayer({
                 document.body.style.cursor = 'auto';
               }}
             >
-              <sphereGeometry args={[0.013, 8, 8]} />
+              <sphereGeometry args={[0.007, 8, 8]} />
               <meshStandardMaterial
                 color={col}
                 emissive={col}
-                emissiveIntensity={isHovered ? 1.0 : 0.4}
+                emissiveIntensity={isHovered ? 1.0 : 0.25}
                 roughness={0.2}
                 metalness={0.1}
                 transparent
-                opacity={Math.min(0.95, opacity * 1.05)}
+                opacity={Math.min(0.65, opacity * 0.75)}
               />
             </mesh>
           </group>

@@ -43,11 +43,34 @@ export const AVAILABLE_7_DAYS = [
 ];
 
 export const DEPTH_RANGE_PRESETS = [
-  { id: 'dataset', label: '11.4m (Exact NetCDF)', maxDepth: 11.4 },
-  { id: 'mixed', label: '50m (Mixed Layer)', maxDepth: 50 },
-  { id: 'epipelagic', label: '200m (Sunlight Zone)', maxDepth: 200 },
-  { id: 'mesopelagic', label: '1000m (Twilight Zone)', maxDepth: 1000 },
-  { id: 'full', label: '2000m (Full Bathymetry)', maxDepth: 2000 }
+  { id: 'dataset', label: '11.4m (Raw NetCDF 9-Levels)', maxDepth: 11.4 },
+  { id: 'mixed', label: '50m (Upper Mixed Layer)', maxDepth: 50 },
+  { id: 'epipelagic', label: '200m (Sunlight Epipelagic)', maxDepth: 200 },
+  { id: 'mesopelagic', label: '1000m (Twilight Mesopelagic)', maxDepth: 1000 },
+  { id: 'full', label: '2000m (Full Bathymetric Cast)', maxDepth: 2000 }
+];
+
+// The 9 ground-truth depth coordinates from the Copernicus GLORYS12V1 NetCDF file
+export const COPERNICUS_EXACT_DEPTHS = [
+  { depth: 0.49, label: '0.49m', name: 'Surface Skin' },
+  { depth: 1.54, label: '1.54m', name: 'Upper Mixed' },
+  { depth: 2.65, label: '2.65m', name: 'Subsurface' },
+  { depth: 3.82, label: '3.82m', name: 'Mid Mixed' },
+  { depth: 5.08, label: '5.08m', name: 'Intermediate' },
+  { depth: 6.44, label: '6.44m', name: 'Transition' },
+  { depth: 7.93, label: '7.93m', name: 'Pre-Thermo' },
+  { depth: 9.57, label: '9.57m', name: 'Lower Mixed' },
+  { depth: 11.40, label: '11.40m', name: 'NetCDF Base' }
+];
+
+export const EXTENDED_OCEAN_DEPTHS = [
+  { depth: 25.0, label: '25m (Upper Thermocline)' },
+  { depth: 50.0, label: '50m (SCM Chlorophyll Peak)' },
+  { depth: 100.0, label: '100m (Euphotic Base)' },
+  { depth: 200.0, label: '200m (Mesopelagic Twilight)' },
+  { depth: 500.0, label: '500m (Intermediate Water)' },
+  { depth: 1000.0, label: '1000m (SOFAR Channel Axis)' },
+  { depth: 2000.0, label: '2000m (Deep Abyssal Water)' }
 ];
 
 export default function AnalysisView({
@@ -249,6 +272,44 @@ export default function AnalysisView({
     });
   }, [stnCode, selectedDate, selectedDepth]);
 
+  // Physical parameter computation at the currently targeted depth (selectedDepth)
+  const activeDepthData = useMemo(() => {
+    const teleMap = COPERNICUS_DAILY_STATION_TELEMETRY[stnCode] || COPERNICUS_DAILY_STATION_TELEMETRY['BD08'] || {};
+    const daily = teleMap[selectedDate];
+    const surfaceT = Number(daily ? daily.temp : (activeStn.baseTemp ?? activeStn.temperature ?? 29.79));
+    const surfaceS = Number(daily ? daily.sal : (activeStn.baseSalinity ?? activeStn.salinity ?? 35.01));
+    const surfaceV = Number(daily ? daily.speed : (activeStn.baseSpeed ?? activeStn.current_speed ?? 0.184));
+    const surfaceChl = Number(activeStn.chlorophyll ?? activeStn.baseChlorophyll ?? 1.45);
+    const dVal = Number(selectedDepth || 0.49);
+    const adj = getDepthAdjustedValues(surfaceT, surfaceS, surfaceV, dVal);
+
+    const sscmPeak = Math.exp(-Math.pow(dVal - 38, 2) / (2 * 450));
+    const chl = +(Math.max(0.02, surfaceChl * 0.45 * Math.exp(-dVal / 75) + 1.95 * sscmPeak)).toFixed(3);
+
+    const soundSpeed = +(
+      1448.96 + 
+      4.591 * adj.temp - 
+      0.05304 * Math.pow(adj.temp, 2) + 
+      0.0002374 * Math.pow(adj.temp, 3) + 
+      1.340 * (adj.sal - 35) + 
+      0.0163 * dVal
+    ).toFixed(2);
+
+    const density = +(1000 + 0.805 * adj.sal - 0.0065 * Math.pow(adj.temp - 4, 2) + 0.0045 * dVal).toFixed(2);
+    const isExactNetCdf = [0.49, 1.54, 2.65, 3.82, 5.08, 6.44, 7.93, 9.57, 11.40].some(v => Math.abs(v - dVal) < 0.05);
+
+    return {
+      depth: dVal,
+      temperature: adj.temp,
+      salinity: adj.sal,
+      currentSpeed: adj.speed,
+      chlorophyll: chl,
+      soundSpeed,
+      density,
+      isExactNetCdf
+    };
+  }, [stnCode, activeStn, selectedDate, selectedDepth]);
+
   // Filtered dataset according to maxDepthRange zoom
   const filteredData = useMemo(() => {
     return columnData.filter(d => d.depth <= maxDepthRange + 0.1);
@@ -434,11 +495,16 @@ export default function AnalysisView({
 
           {/* CONTROL 3: DEPTH RANGE / ZOOM PRESETS */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-mono font-bold text-amber-400 flex items-center gap-1.5">
-              <Layers className="h-3.5 w-3.5" />
-              Depth Window:
+            <label className="text-[11px] font-mono font-bold text-amber-400 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Layers className="h-3.5 w-3.5" />
+                Depth Window:
+              </span>
+              <span className="text-[9.5px] text-slate-400 font-normal">
+                0m → {maxDepthRange}m
+              </span>
             </label>
-            <div className="grid grid-cols-3 gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
               {DEPTH_RANGE_PRESETS.map(preset => (
                 <button
                   key={preset.id}
@@ -447,7 +513,7 @@ export default function AnalysisView({
                     setMaxDepthRange(preset.maxDepth);
                     if (isPlotted) handleTriggerPlot();
                   }}
-                  className={`px-1.5 py-1 rounded text-[9.5px] font-mono font-bold truncate transition-all cursor-pointer ${
+                  className={`flex-1 min-w-[50px] py-1.5 px-1 rounded-lg text-[9.5px] font-mono font-bold truncate transition-all cursor-pointer ${
                     Math.abs(maxDepthRange - preset.maxDepth) < 0.2
                       ? 'bg-amber-400 text-slate-950 font-extrabold shadow-sm ring-1 ring-amber-200'
                       : preset.id === 'dataset'
@@ -456,7 +522,7 @@ export default function AnalysisView({
                   }`}
                   title={preset.label}
                 >
-                  {preset.maxDepth}m {preset.id === 'dataset' ? '★(NetCDF)' : preset.id === 'mixed' ? '(Mixed)' : preset.id === 'full' ? '(Deep)' : ''}
+                  {preset.maxDepth}m {preset.id === 'dataset' ? '★' : ''}
                 </button>
               ))}
             </div>
@@ -495,6 +561,92 @@ export default function AnalysisView({
             </button>
           </div>
 
+        </div>
+
+        {/* ACTIVE TARGET DEPTH SELECTION & STRATIFIED TELEMETRY (Z-LEVEL) */}
+        <div className="pt-2.5 border-t border-cyan-500/20 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-3 text-xs font-mono">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-violet-400 font-bold flex items-center gap-1.5 shrink-0">
+              <Sliders className="w-3.5 h-3.5" />
+              Target Depth Layer:
+            </span>
+            
+            {/* 9 Authentic Copernicus NetCDF Depth Levels */}
+            <div className="flex items-center gap-1 flex-wrap">
+              {COPERNICUS_EXACT_DEPTHS.map(dObj => (
+                <button
+                  key={`netcdf-depth-${dObj.depth}`}
+                  type="button"
+                  onClick={() => setSelectedDepth && setSelectedDepth(dObj.depth)}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                    Math.abs(Number(selectedDepth) - dObj.depth) < 0.05
+                      ? 'bg-violet-600 text-white shadow-md shadow-violet-500/40 ring-1 ring-violet-300'
+                      : 'bg-[#060c18] text-violet-300 hover:bg-violet-950/40 border border-violet-500/30'
+                  }`}
+                  title={`${dObj.label} — Copernicus NetCDF ${dObj.name}`}
+                >
+                  {dObj.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Extended Oceanographic Cast Selector */}
+            <div className="relative">
+              <select
+                value={Number(selectedDepth).toFixed(2)}
+                onChange={(e) => setSelectedDepth && setSelectedDepth(Number(e.target.value))}
+                className="bg-[#0e172a] hover:bg-[#14213d] text-cyan-300 text-[10px] font-bold font-mono py-1 px-2.5 rounded-lg border border-cyan-500/40 cursor-pointer focus:outline-none shadow-sm"
+              >
+                <optgroup label="Copernicus NetCDF Grid (0m - 11.4m)">
+                  {COPERNICUS_EXACT_DEPTHS.map(dObj => (
+                    <option key={`opt-${dObj.depth}`} value={dObj.depth.toFixed(2)}>
+                      {dObj.label} ({dObj.name})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Deep Oceanographic Water Column (25m - 2000m)">
+                  {EXTENDED_OCEAN_DEPTHS.map(dObj => (
+                    <option key={`opt-${dObj.depth}`} value={dObj.depth.toFixed(2)}>
+                      {dObj.label}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+          </div>
+
+          {/* Real-time Physical Oceanography Readout at Selected Depth */}
+          <div className="flex items-center gap-2.5 bg-[#060c18] px-3 py-1.5 rounded-xl border border-violet-500/30 text-[11px] flex-wrap shadow-inner">
+            <span className="text-violet-300 font-extrabold flex items-center gap-1.5">
+              <Layers className="w-3 h-3 text-violet-400" />
+              Z = {Number(selectedDepth).toFixed(2)}m
+              {activeDepthData.isExactNetCdf && (
+                <span className="text-[8.5px] px-1.5 py-0.2 rounded bg-sky-950 text-sky-300 border border-sky-400/40 font-bold">
+                  NetCDF Grid
+                </span>
+              )}
+            </span>
+            <span className="text-slate-600 hidden sm:inline">|</span>
+            <span className="text-rose-300 font-bold" title="Water Temperature at Selected Depth">
+              {activeDepthData.temperature}°C
+            </span>
+            <span className="text-slate-600 hidden sm:inline">|</span>
+            <span className="text-teal-300 font-bold" title="Salinity at Selected Depth">
+              {activeDepthData.salinity} PSU
+            </span>
+            <span className="text-slate-600 hidden sm:inline">|</span>
+            <span className="text-indigo-300 font-bold" title="Potential Density sigma-theta">
+              {activeDepthData.density} kg/m³
+            </span>
+            <span className="text-slate-600 hidden sm:inline">|</span>
+            <span className="text-purple-300 font-bold" title="Sound Velocity (Mackenzie 1981)">
+              {activeDepthData.soundSpeed} m/s
+            </span>
+            <span className="text-slate-600 hidden sm:inline">|</span>
+            <span className="text-emerald-300 font-bold" title="Chlorophyll-a Concentration">
+              {activeDepthData.chlorophyll} mg/m³
+            </span>
+          </div>
         </div>
       </div>
 
@@ -896,13 +1048,20 @@ export default function AnalysisView({
               className="relative w-full h-[360px] sm:h-[400px] bg-[#020b18] border border-cyan-500/30 rounded-xl p-2 cursor-crosshair overflow-hidden shadow-inner"
               onMouseMove={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
+                const scaleX = svgW / (rect.width || 1);
+                const scaleY = svgH / (rect.height || 1);
                 if (activeTopic === 'diurnal_cycle') {
-                  const relativeX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-                  const hour = Math.min(23, Math.max(0, Math.round(((relativeX - padLeft) / plotW) * 23)));
+                  const svgX = (e.clientX - rect.left) * scaleX;
+                  const hour = Math.min(23, Math.max(0, Math.round(((svgX - padLeft) / plotW) * 23)));
                   setHoveredHourVal(hour);
                 } else {
-                  const relativeY = e.clientY - rect.top;
-                  setHoveredDepthVal(getDepthFromY(relativeY));
+                  const svgY = (e.clientY - rect.top) * scaleY;
+                  setHoveredDepthVal(getDepthFromY(svgY));
+                }
+              }}
+              onClick={() => {
+                if (activeTopic !== 'diurnal_cycle' && hoveredPoint && setSelectedDepth) {
+                  setSelectedDepth(hoveredPoint.depth);
                 }
               }}
               onMouseLeave={() => {
@@ -955,6 +1114,48 @@ export default function AnalysisView({
                         </g>
                       );
                     })}
+
+                    {/* Active Selected Depth Horizontal Marker Line */}
+                    {selectedDepth <= maxDepthRange && (
+                      <g>
+                        <line
+                          x1={padLeft}
+                          y1={getY(selectedDepth)}
+                          x2={svgW - padRight}
+                          y2={getY(selectedDepth)}
+                          stroke="#c084fc"
+                          strokeWidth="1.8"
+                          strokeDasharray="4 3"
+                        />
+                        <circle
+                          cx={padLeft}
+                          cy={getY(selectedDepth)}
+                          r={3.5}
+                          fill="#a855f7"
+                        />
+                        <rect
+                          x={svgW - padRight + 3}
+                          y={getY(selectedDepth) - 9}
+                          width={58}
+                          height={18}
+                          rx={4}
+                          fill="#3b0764"
+                          stroke="#c084fc"
+                          strokeWidth="1"
+                        />
+                        <text
+                          x={svgW - padRight + 32}
+                          y={getY(selectedDepth) + 3.5}
+                          textAnchor="middle"
+                          fontSize="9"
+                          fill="#f3e8ff"
+                          fontFamily="monospace"
+                          fontWeight="bold"
+                        >
+                          {Number(selectedDepth).toFixed(2)}m ★
+                        </text>
+                      </g>
+                    )}
 
                     <text 
                       x={18} 

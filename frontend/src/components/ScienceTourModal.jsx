@@ -53,7 +53,7 @@ const TOUR_CHAPTERS = [
     color: 'from-teal-500 to-emerald-600',
     description: "During the Southwest Monsoon, strong coastal winds push warm surface waters offshore. To replace them, cold, nutrient-rich deep water 'wells up' to the surface along Kerala, Karnataka, and Goa. This triggers massive phytoplankton blooms (high Chlorophyll), attracting schools of sardines and pelagic fish.",
     keyFacts: [
-      'Chlorophyll Spike: Increases from 0.2 to over 2.5 mg/m³',
+      'Chlorophyll Spike: Increases from 0.2 to 2.5 mg/m³',
       'Sea Surface Cooling: Drops 2°C to 3°C during active upwelling',
       'INCOIS Advisory: Directly feeds the Potential Fishing Zone (PFZ) forecasts'
     ],
