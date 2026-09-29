@@ -172,7 +172,7 @@ export default function NavigationSidebar({
                   {isLive ? 'GLORYS12V1 Live' : 'Copernicus Stream'}
                 </span>
               </div>
-              <span className="text-cyan-300 font-bold" title="Copernicus GLORYS12V1 NetCDF Grid: 0.49m to 11.40m | Extended Column: 2000m">
+              <span className="text-cyan-300 font-bold" title="Copernicus GLORYS12V1 NetCDF Grid: 0.49m to 11.40m (9 Depth Levels)">
                 0.49m — 11.4m
               </span>
             </div>

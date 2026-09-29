@@ -64,9 +64,9 @@ export default function Ocean3DView({
 
   const handleSelectPreset = (p) => {
     setActivePreset(p.code);
-    const found = stations.find(s => s.code === p.code || s.id === p.id);
+    const found = stations.find(s => s.code === p.code || s.id === p.id || s.code?.startsWith(p.code));
     if (found && onSelectStation) {
-      onSelectStation(found);
+      onSelectStation({ ...found, _selectTime: Date.now() });
     }
   };
 
@@ -127,7 +127,9 @@ export default function Ocean3DView({
                     handleSelectPreset(foundPreset);
                   } else {
                     const foundStn = stations.find(s => (s.code || s.id) === targetCode);
-                    if (foundStn && onSelectStation) onSelectStation(foundStn);
+                    if (foundStn && onSelectStation) {
+                      onSelectStation({ ...foundStn, _selectTime: Date.now() });
+                    }
                   }
                 }}
                 className="bg-[#0e172a] hover:bg-[#14213d] text-white text-xs font-bold font-mono py-1 pl-2.5 pr-7 rounded-lg border border-sky-500/40 focus:border-sky-400 focus:outline-none transition-all cursor-pointer appearance-none shadow-inner"

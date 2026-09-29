@@ -43,11 +43,11 @@ export const AVAILABLE_7_DAYS = [
 ];
 
 export const DEPTH_RANGE_PRESETS = [
-  { id: 'dataset', label: '11.4m (Raw NetCDF 9-Levels)', maxDepth: 11.4 },
+  { id: 'dataset', label: '11.4m (Copernicus NetCDF 9-Levels)', maxDepth: 11.4 },
   { id: 'mixed', label: '50m (Upper Mixed Layer)', maxDepth: 50 },
   { id: 'epipelagic', label: '200m (Sunlight Epipelagic)', maxDepth: 200 },
   { id: 'mesopelagic', label: '1000m (Twilight Mesopelagic)', maxDepth: 1000 },
-  { id: 'full', label: '2000m (Full Bathymetric Cast)', maxDepth: 2000 }
+  { id: 'full', label: '2000m (Argo Bathymetric Cast)', maxDepth: 2000 }
 ];
 
 // The 9 ground-truth depth coordinates from the Copernicus GLORYS12V1 NetCDF file
@@ -95,8 +95,8 @@ export default function AnalysisView({
   const [animationKey, setAnimationKey] = useState(0);
   const [scanStep, setScanStep] = useState(0);
 
-  // Depth range filter for graph zoom (Default 200m, but 11.4m is available for raw NetCDF)
-  const [maxDepthRange, setMaxDepthRange] = useState(200);
+  // Depth range filter for graph zoom (Default 11.4m to match raw Copernicus NetCDF 9-levels)
+  const [maxDepthRange, setMaxDepthRange] = useState(11.4);
 
   // Interactive Hover scrubber
   const [hoveredDepthVal, setHoveredDepthVal] = useState(null);
@@ -597,14 +597,14 @@ export default function AnalysisView({
                 onChange={(e) => setSelectedDepth && setSelectedDepth(Number(e.target.value))}
                 className="bg-[#0e172a] hover:bg-[#14213d] text-cyan-300 text-[10px] font-bold font-mono py-1 px-2.5 rounded-lg border border-cyan-500/40 cursor-pointer focus:outline-none shadow-sm"
               >
-                <optgroup label="Copernicus NetCDF Grid (0m - 11.4m)">
+                <optgroup label="Copernicus NetCDF Grid (0.49m - 11.40m)">
                   {COPERNICUS_EXACT_DEPTHS.map(dObj => (
                     <option key={`opt-${dObj.depth}`} value={dObj.depth.toFixed(2)}>
                       {dObj.label} ({dObj.name})
                     </option>
                   ))}
                 </optgroup>
-                <optgroup label="Deep Oceanographic Water Column (25m - 2000m)">
+                <optgroup label="Deep In-Situ Profilers (Argo Floats: 25m - 2000m)">
                   {EXTENDED_OCEAN_DEPTHS.map(dObj => (
                     <option key={`opt-${dObj.depth}`} value={dObj.depth.toFixed(2)}>
                       {dObj.label}

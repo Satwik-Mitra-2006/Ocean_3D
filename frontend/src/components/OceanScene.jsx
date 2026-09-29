@@ -653,12 +653,23 @@ export default function OceanScene({
     setCameraTargetPos(pos);
   }, []);
 
-  // Auto-fly to selected station whenever user selects a station
+  // Auto-fly to selected station whenever user selects a station from presets or globe
   useEffect(() => {
-    if (selectedStation && viewMode === 'globe') {
-      flyToStation(selectedStation);
+    if (selectedStation) {
+      setHoveredStation(selectedStation);
+      if (viewMode === 'globe') {
+        flyToStation(selectedStation);
+      }
     }
-  }, [selectedStation?.id, viewMode, flyToStation]);
+  }, [
+    selectedStation?.id, 
+    selectedStation?.code, 
+    selectedStation?._selectTime, 
+    selectedStation?.lat, 
+    selectedStation?.lon, 
+    viewMode, 
+    flyToStation
+  ]);
 
   const handleResetGlobe = () => {
     setCameraTargetPos(new THREE.Vector3(1.2, 0.9, -5.5));
@@ -981,10 +992,10 @@ export default function OceanScene({
                     ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white shadow-md shadow-cyan-500/40 ring-1 ring-cyan-300/40'
                     : 'hover:bg-slate-800/60 text-slate-400 hover:text-white'
                 }`}
-                title="Toggle 3D Subsurface Vertical Cross-Section Slice (0 to 2000m Depth)"
+                title="Toggle 3D Subsurface Vertical Cross-Section Slice (0.49m to 11.40m Copernicus NetCDF Grid)"
               >
                 <span className="text-cyan-300">⚡</span>
-                <span className="hidden xl:inline">Depth Slice (0-2000m)</span>
+                <span className="hidden xl:inline">3D Depth Slice (0.49–11.4m)</span>
               </button>
             )}
 
@@ -1097,7 +1108,7 @@ export default function OceanScene({
         {/* DYNAMIC TELEMETRY DISPLAY (FLY IN ONE-BY-ONE INTO LEFT HUD)  */}
         {/* ============================================================ */}
         <div 
-          key={displayStationData.code || 'hud-panel'}
+          key={`${displayStationData.code || 'hud-panel'}-${displayStationData.station?._selectTime || ''}`}
           className="absolute left-3 top-14 z-20 pointer-events-auto bg-[#090b14]/90 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-indigo-400/30 shadow-[0_0_25px_rgba(99,102,241,0.2)] flex flex-col gap-2 w-56 sm:w-60 font-sans transition-all overflow-hidden"
         >
           
